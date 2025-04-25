@@ -13,7 +13,6 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -23,8 +22,94 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         fontFamily: 'Roboto',
       ),
-      home: const MyHomePage(),
+      home: const MainNavigationScreen(),
     );
+  }
+}
+
+// Main navigation container with bottom navigation
+class MainNavigationScreen extends StatefulWidget {
+  const MainNavigationScreen({Key? key}) : super(key: key);
+
+  @override
+  State<MainNavigationScreen> createState() => _MainNavigationScreenState();
+}
+
+class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  int _selectedIndex = 0;
+  
+  // List of screens for navigation
+  final List<Widget> _screens = [
+    const MyHomePage(),
+    const FavoritesScreen(),
+    const AboutScreen(),
+  ];
+  
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _screens[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.favorite),
+            label: 'Favorites',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.info),
+            label: 'About',
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.blue,
+        onTap: _onItemTapped,
+      ),
+    );
+  }
+}
+
+// Create a class to store favorite wallpapers globally
+class FavoritesManager {
+  static final FavoritesManager _instance = FavoritesManager._internal();
+  
+  // Factory constructor to return the same instance every time
+  factory FavoritesManager() {
+    return _instance;
+  }
+  
+  FavoritesManager._internal();
+  
+  // Set to store unique favorite wallpaper paths
+  final Set<String> _favorites = {};
+  
+  // Add a wallpaper to favorites
+  void addFavorite(String path) {
+    _favorites.add(path);
+  }
+  
+  // Remove a wallpaper from favorites
+  void removeFavorite(String path) {
+    _favorites.remove(path);
+  }
+  
+  // Check if a wallpaper is in favorites
+  bool isFavorite(String path) {
+    return _favorites.contains(path);
+  }
+  
+  // Get all favorites
+  List<String> getAllFavorites() {
+    return _favorites.toList();
   }
 }
 
@@ -35,13 +120,19 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-
 class _MyHomePageState extends State<MyHomePage> {
-  // Add these variables at the top of the class
   TextEditingController searchController = TextEditingController();
   List<String> allWallpapers = ['Nature', 'City', 'Abstract', 'Animals', 'Landscape', 'Space'];
   List<String> filteredWallpapers = [];
   bool isSearching = false;
+  
+  // Add a list of wallpaper image paths
+  final List<String> wallpaperImages = [
+    'assets/leaf.png',
+    'assets/easter_eggs.png',
+    'assets/minimal.png',
+    'assets/dark.png',
+  ];
 
   @override
   void initState() {
@@ -66,35 +157,38 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        title: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Wallpaper',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+            ),
+            Text(
+              'My',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Column(
             children: [
-              const SizedBox(height: 20),
-              // App Title
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Wallpaper',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                  ),
-                  Text(
-                    'My',
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-
+              const SizedBox(height: 10),
+              
               // Search Bar
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -161,7 +255,6 @@ class _MyHomePageState extends State<MyHomePage> {
                     ],
                   ),
                 ),              
-              const SizedBox(height: 20),
                             
               const SizedBox(height: 20),
               
@@ -179,7 +272,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
-              
               
               const SizedBox(height: 20),
               
@@ -214,6 +306,8 @@ class _MyHomePageState extends State<MyHomePage> {
                   ],
                 ),
               ),
+              
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -252,12 +346,21 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildWallpaperItem(String imagePath, {required double ratio}) {
+    // Check if this wallpaper is favorited
+    final bool isFavorite = FavoritesManager().isFavorite(imagePath);
+    
     return GestureDetector(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => WallpaperDetailScreen(imagePath: imagePath),
+            builder: (context) => WallpaperDetailScreen(
+              imagePath: imagePath,
+              onFavoriteChanged: () {
+                // Refresh the UI when returning from detail screen
+                setState(() {});
+              },
+            ),
           ),
         );
       },
@@ -265,36 +368,51 @@ class _MyHomePageState extends State<MyHomePage> {
         tag: imagePath,
         child: AspectRatio(
           aspectRatio: ratio,
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              image: DecorationImage(
-                image: AssetImage(imagePath),
-                fit: BoxFit.cover,
-              ),
-            ),
-            child: Align(
-              alignment: Alignment.bottomCenter,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Stack(
+            children: [
+              Container(
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
+                  borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(
+                    image: AssetImage(imagePath),
+                    fit: BoxFit.cover,
                   ),
                 ),
-                child: Text(
-                  imagePath.split('/').last.split('.').first.toUpperCase(),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.5),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(8),
+                        bottomRight: Radius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      imagePath.split('/').last.split('.').first.toUpperCase(),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+              // Show a favorite indicator if the wallpaper is in favorites
+              if (isFavorite)
+                const Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Icon(
+                    Icons.favorite,
+                    color: Colors.red,
+                    size: 22,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -302,18 +420,400 @@ class _MyHomePageState extends State<MyHomePage> {
   }  
 }
 
-// Add the WallpaperDetailScreen class here
+// Add the FavoritesScreen class
+class FavoritesScreen extends StatefulWidget {
+  const FavoritesScreen({Key? key}) : super(key: key);
+
+  @override
+  State<FavoritesScreen> createState() => _FavoritesScreenState();
+}
+
+class _FavoritesScreenState extends State<FavoritesScreen> {
+  late List<String> favorites;
+  
+  @override
+  void initState() {
+    super.initState();
+    favorites = FavoritesManager().getAllFavorites();
+  }
+  
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Favorite Wallpapers',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: favorites.isEmpty
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.favorite_border,
+                    size: 64,
+                    color: Colors.grey,
+                  ),
+                  SizedBox(height: 20),
+                  Text(
+                    'No favorites yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Like wallpapers to add them here',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : GridView.builder(
+              padding: const EdgeInsets.all(16),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: favorites.length,
+              itemBuilder: (context, index) {
+                final wallpaper = favorites[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => WallpaperDetailScreen(
+                          imagePath: wallpaper,
+                          onFavoriteChanged: () {
+                            // Refresh the favorites list when returning
+                            setState(() {
+                              favorites = FavoritesManager().getAllFavorites();
+                            });
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                  child: Hero(
+                    tag: 'favorite_$wallpaper',
+                    child: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            image: DecorationImage(
+                              image: AssetImage(wallpaper),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        // Remove from favorites button
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: CircleAvatar(
+                            backgroundColor: Colors.black54,
+                            radius: 16,
+                            child: IconButton(
+                              icon: const Icon(Icons.favorite, color: Colors.red, size: 18),
+                              padding: EdgeInsets.zero,
+                              onPressed: () {
+                                setState(() {
+                                  FavoritesManager().removeFavorite(wallpaper);
+                                  favorites = FavoritesManager().getAllFavorites();
+                                });
+                              },
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.5),
+                              borderRadius: const BorderRadius.only(
+                                bottomLeft: Radius.circular(8),
+                                bottomRight: Radius.circular(8),
+                              ),
+                            ),
+                            child: Text(
+                              wallpaper.split('/').last.split('.').first.toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
+// New About Screen
+class AboutScreen extends StatelessWidget {
+  const AboutScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'About',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            
+            // App Logo
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: Colors.blue,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Center(
+                child: Icon(
+                  Icons.wallpaper,
+                  size: 70,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // App Title
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Wallpaper',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                Text(
+                  'My',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // App Version
+            const Text(
+              'Version 1.0.0',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            
+            const SizedBox(height: 30),
+            
+            // App Description
+            const Text(
+              'WallpaperMy is a free wallpaper application that provides high-quality wallpapers for your device. With WallpaperMy, you can browse, search, and set beautiful wallpapers for your home screen and lock screen.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+              ),
+            ),
+            
+            const SizedBox(height: 30),
+            
+            // Features Section
+            const Text(
+              'Features',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            
+            const SizedBox(height: 15),
+            
+            _buildFeatureItem(
+              Icons.photo_library, 
+              'Beautiful Wallpapers', 
+              'Access a wide collection of high-quality wallpapers'
+            ),
+            
+            _buildFeatureItem(
+              Icons.favorite, 
+              'Favorites', 
+              'Save your favorite wallpapers for quick access'
+            ),
+            
+            _buildFeatureItem(
+              Icons.format_paint, 
+              'Categories', 
+              'Browse wallpapers by category for easy discovery'
+            ),
+            
+            _buildFeatureItem(
+              Icons.wallpaper, 
+              'Easy Application', 
+              'Set wallpapers for home screen, lock screen, or both'
+            ),
+            
+            _buildFeatureItem(
+              Icons.share, 
+              'Share', 
+              'Share wallpapers with friends and family'
+            ),
+                        
+            const SizedBox(height: 30),
+            
+            // Developer Info
+            const Text(
+              'Developed by',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+            
+            const SizedBox(height: 5),
+            
+            const Text(
+              'WallpaperMy Team',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            
+            const SizedBox(height: 30),
+            
+            // Contact Info
+            OutlinedButton.icon(
+              icon: const Icon(Icons.email),
+              label: const Text('Contact Us'),
+              onPressed: () {
+                // Implement email contact functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contact feature coming soon!')),
+                );
+              },
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildFeatureItem(IconData icon, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.blue.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(
+              icon,
+              color: Colors.blue,
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Modified WallpaperDetailScreen class
 class WallpaperDetailScreen extends StatefulWidget {
   final String imagePath;
+  final Function? onFavoriteChanged;
   
-  const WallpaperDetailScreen({Key? key, required this.imagePath}) : super(key: key);
+  const WallpaperDetailScreen({
+    Key? key, 
+    required this.imagePath,
+    this.onFavoriteChanged,
+  }) : super(key: key);
 
   @override
   State<WallpaperDetailScreen> createState() => _WallpaperDetailScreenState();
 }
 
 class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
-  bool isLiked = false;
+  late bool isLiked;
+
+  @override
+  void initState() {
+    super.initState();
+    isLiked = FavoritesManager().isFavorite(widget.imagePath);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -351,7 +851,12 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                     backgroundColor: Colors.black54,
                     child: IconButton(
                       icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        if (widget.onFavoriteChanged != null) {
+                          widget.onFavoriteChanged!();
+                        }
+                        Navigator.pop(context);
+                      },
                     ),
                   ),
                   
@@ -394,6 +899,23 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                     onPressed: () {
                       setState(() {
                         isLiked = !isLiked;
+                        if (isLiked) {
+                          FavoritesManager().addFavorite(widget.imagePath);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Added to favorites'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        } else {
+                          FavoritesManager().removeFavorite(widget.imagePath);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Removed from favorites'),
+                              duration: Duration(seconds: 1),
+                            ),
+                          );
+                        }
                       });
                     },
                   ),
@@ -423,19 +945,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                       // Save the image to a temporary file
                       await file.writeAsBytes(list);
 
-                      // Constants for this package
-                      // 1 = Home screen
-                      // 2 = Lock screen 
-                      // 3 = Both screens
-                      // final int location = 1; // Home screen
-
-                      // // The actual method in this package is likely this:
-                      // await WallpaperManagerFlutter().setWallpaper(file, location);
-                      
-                      // ScaffoldMessenger.of(context).showSnackBar(
-                      //   const SnackBar(content: Text('Wallpaper set successfully!')),
-                      // );
-
                       // Show wallpaper location selection dialog
                       showDialog(
                         context: context,
@@ -450,7 +959,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                                   onTap: () async {
                                     Navigator.pop(context);
                                     try {
-                              final int location = 1;
+                                      final int location = 1;
                                       await WallpaperManagerFlutter().setWallpaper(
                                         file, 
                                         location
@@ -470,7 +979,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                                   onTap: () async {
                                     Navigator.pop(context);
                                     try {
-                            final int location = 2;
+                                      final int location = 2;
                                       await WallpaperManagerFlutter().setWallpaper(
                                         file, 
                                         location
@@ -490,7 +999,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                                   onTap: () async {
                                     Navigator.pop(context);
                                     try {
-                            final int location = 2;				  
+                                      final int location = 3;
                                       await WallpaperManagerFlutter().setWallpaper(
                                         file, 
                                         location
@@ -517,11 +1026,8 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                       );
                     }
                   },
-                  child: const Text(
-                    'SET AS WALLPAPER',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ),
+                  child: const Text('Set Wallpaper'),  // Added the required child parameter
+                )                
               ],
             ),
           ),
