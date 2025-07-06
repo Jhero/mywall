@@ -93,6 +93,9 @@ class _WallpaperGridState extends State<WallpaperGrid> {
                 Image.network(
                   GalleryService.getImageUrl(gallery.imageUrl),
                   fit: BoxFit.cover,
+                  headers: {
+                    'X-API-Key': GalleryService.apiKey, // Replace with your actual API key
+                  },
                   loadingBuilder: (context, child, loadingProgress) {
                     if (loadingProgress == null) return child;
                     return Container(
