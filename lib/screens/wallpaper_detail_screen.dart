@@ -1,248 +1,218 @@
+// lib/screens/wallpaper_detail_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'dart:io';
-import 'dart:typed_data';
-import 'package:share_plus/share_plus.dart';
-import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
-import '../models/favorites_manager.dart';
+import '../models/gallery.dart';
+import '../services/gallery_service.dart';
+import '../services/favorites_manager.dart';
+import 'package:http/http.dart' as http;
 
 class WallpaperDetailScreen extends StatefulWidget {
-  final String imagePath;
-  final Function? onFavoriteChanged;
-  
+  final Gallery? gallery;
+  final String? imagePath;
+  final VoidCallback? onFavoriteChanged;
+
   const WallpaperDetailScreen({
-    Key? key, 
-    required this.imagePath,
+    Key? key,
+    this.gallery,
+    this.imagePath,
     this.onFavoriteChanged,
-  }) : super(key: key);
+  }) : assert(gallery != null || imagePath != null, 'Either gallery or imagePath must be provided'),
+       super(key: key);
+
+  // Named constructor for Gallery objects
+  const WallpaperDetailScreen.fromGallery({
+    Key? key,
+    required Gallery gallery,
+    this.onFavoriteChanged,
+  }) : gallery = gallery,
+       imagePath = null,
+       super(key: key);
+
+  // Named constructor for local assets
+  const WallpaperDetailScreen.fromAsset({
+    Key? key,
+    required String imagePath,
+    this.onFavoriteChanged,
+  }) : gallery = null,
+       imagePath = imagePath,
+       super(key: key);
 
   @override
   State<WallpaperDetailScreen> createState() => _WallpaperDetailScreenState();
 }
 
 class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
-  late bool isLiked;
+  late bool isFavorite;
+  late String imageIdentifier;
+  late String title;
+  late String description;
 
   @override
   void initState() {
     super.initState();
-    isLiked = FavoritesManager().isFavorite(widget.imagePath);
+    imageIdentifier = widget.gallery!.imageUrl;
+    title = widget.gallery!.title;
+    description = widget.gallery!.description;
+    isFavorite = FavoritesManager().isFavorite(imageIdentifier);
+  }
+
+  void _toggleFavorite() {
+    setState(() {
+      isFavorite = !isFavorite;
+      FavoritesManager().toggleFavorite(imageIdentifier);
+      if (widget.onFavoriteChanged != null) {
+        widget.onFavoriteChanged!();
+      }
+    });
+  }
+
+  Widget _buildImage() {
+    final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+    return FutureBuilder<http.Response>(
+      future: http.get(
+        Uri.parse(imageUrl),
+        headers: {
+          'X-API-Key': GalleryService.apiKey,
+        },
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Colors.white));
+        } else if (snapshot.hasError) {
+          return const Center(
+            child: Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 100,
+            ),
+          );
+        } else if (snapshot.hasData && snapshot.data!.statusCode == 200) {
+          return Image.memory(
+            snapshot.data!.bodyBytes,
+            fit: BoxFit.contain,
+          );
+        } else {
+          return const Center(
+            child: Icon(
+              Icons.error,
+              color: Colors.red,
+              size: 100,
+            ),
+          );
+        }
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // Full screen image
-          GestureDetector(
-            onTap: () {
-              Navigator.pop(context);
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _toggleFavorite,
+            icon: Icon(
+              isFavorite ? Icons.favorite : Icons.favorite_border,
+              color: isFavorite ? Colors.red : Colors.white,
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              // Add download functionality here
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Download functionality not implemented'),
+                ),
+              );
             },
-            child: Center(
-              child: Hero(
-                tag: widget.imagePath,
-                child: Image.asset(
-                  widget.imagePath,
-                  fit: BoxFit.contain,
-                  width: double.infinity,
-                  height: double.infinity,
-                ),
+            icon: const Icon(Icons.download, color: Colors.white),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          // Image viewer
+          Expanded(
+            child: InteractiveViewer(
+              child: Center(
+                child: _buildImage(),
               ),
             ),
           ),
-          
-          // Top action buttons
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Back button
-                  CircleAvatar(
-                    backgroundColor: Colors.black54,
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: () {
-                        if (widget.onFavoriteChanged != null) {
-                          widget.onFavoriteChanged!();
-                        }
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ),
-                  
-                  // Share button
-                  CircleAvatar(
-                    backgroundColor: Colors.blue,
-                    child: IconButton(
-                      icon: const Icon(Icons.share, color: Colors.white),
-                      onPressed: () async {
-                        final ByteData bytes = await rootBundle.load(widget.imagePath);
-                        final Uint8List list = bytes.buffer.asUint8List();
-                        final tempDir = await getTemporaryDirectory();
-                        final file = await File('${tempDir.path}/image.jpg').create();
-                        await file.writeAsBytes(list);
-                        await Share.shareXFiles([XFile(file.path)], text: 'Check out this wallpaper!');
-                      },
-                    ),
-                  ),
-                ],
+          // Bottom info panel
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
             ),
-          ),
-          
-          // Bottom action buttons
-          Positioned(
-            bottom: 30,
-            left: 0,
-            right: 0,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Like button
-                CircleAvatar(
-                  backgroundColor: Colors.red,
-                  child: IconButton(
-                    icon: Icon(
-                      isLiked ? Icons.favorite : Icons.favorite_border,
-                      color: Colors.white,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        isLiked = !isLiked;
-                        if (isLiked) {
-                          FavoritesManager().addFavorite(widget.imagePath);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Added to favorites'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        } else {
-                          FavoritesManager().removeFavorite(widget.imagePath);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Removed from favorites'),
-                              duration: Duration(seconds: 1),
-                            ),
-                          );
-                        }
-                      });
-                    },
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 20),
-                
-                // Set Wallpaper button
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
+                const SizedBox(height: 8),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 16,
                   ),
-                  onPressed: () async {
-                    try {
-                      final ByteData bytes = await rootBundle.load(widget.imagePath);
-                      final Uint8List list = bytes.buffer.asUint8List();
-                      
-                      // Get the directory for temporary files
-                      final directory = await getTemporaryDirectory();
-                      final imagePath = '${directory.path}/wallpaper_${DateTime.now().millisecondsSinceEpoch}.jpg';
-                      final file = File(imagePath);
-                      await file.writeAsBytes(list);
-                      
-                      // Set the wallpaper
-                      // Show wallpaper location selection dialog
-                      showDialog(
-                        context: context,
-                        builder: (BuildContext context) {
-                          return AlertDialog(
-                            title: const Text('Set wallpaper on'),
-                            content: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ListTile(
-                                  title: const Text('Home Screen'),
-                                  onTap: () async {
-                                    Navigator.pop(context);
-                                    try {
-                                      final int location = 1;
-                                      await WallpaperManagerFlutter().setWallpaper(
-                                        file, 
-                                        location
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Home screen wallpaper set successfully!')),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error: ${e.toString()}')),
-                                      );
-                                    }
-                                  },
-                                ),
-                                ListTile(
-                                  title: const Text('Lock Screen'),
-                                  onTap: () async {
-                                    Navigator.pop(context);
-                                    try {
-                                      final int location = 2;
-                                      await WallpaperManagerFlutter().setWallpaper(
-                                        file, 
-                                        location
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Lock screen wallpaper set successfully!')),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error: ${e.toString()}')),
-                                      );
-                                    }
-                                  },
-                                ),
-                                ListTile(
-                                  title: const Text('Both Screens'),
-                                  onTap: () async {
-                                    Navigator.pop(context);
-                                    try {
-                                      final int location = 3;
-                                      await WallpaperManagerFlutter().setWallpaper(
-                                        file, 
-                                        location
-                                      );
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Wallpaper set on both screens successfully!')),
-                                      );
-                                    } catch (e) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(content: Text('Error: ${e.toString()}')),
-                                      );
-                                    }
-                                  },
-                                ),
-                              ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // Add set as wallpaper functionality
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Set as wallpaper functionality not implemented')),
+                          );
+                        },
+                        icon: const Icon(Icons.wallpaper),
+                        label: const Text('Set as Wallpaper'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // Add share functionality
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Share functionality not implemented'),
                             ),
                           );
                         },
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Error setting wallpaper: $e'),
-                          duration: const Duration(seconds: 2),
+                        icon: const Icon(Icons.share),
+                        label: const Text('Share'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                      );
-                    }
-                  },
-                  child: const Text('Set Wallpaper'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

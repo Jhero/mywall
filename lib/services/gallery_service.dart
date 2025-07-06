@@ -4,7 +4,7 @@ import 'dart:convert';
 import '../models/gallery.dart';
 
 class GalleryService {
-  static const String baseUrl = 'http://localhost:8080/api/gallerieslocalhost';
+  static const String baseUrl = 'http://192.168.1.7:8080';
   static const String apiKey = 'ebe2540a9634855cb916d8b2d7bde2ad2154dd46f4dc3a0727a93a17779a98d8'; // Replace with your actual API key
 
   static Future<List<Gallery>> fetchGalleries() async {
@@ -16,7 +16,6 @@ class GalleryService {
           'Content-Type': 'application/json',
         },
       );
-
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['status'] == true) {
@@ -35,6 +34,10 @@ class GalleryService {
   }
 
   static String getImageUrl(String imageUrl) {
-    return '$baseUrl/$imageUrl';
+    String imageCleanUrl = '$baseUrl/api/images/$imageUrl';
+    String cleanUrl = imageCleanUrl
+    .replaceAll('/uploads', '')
+    .replaceAll('\\', '/');
+    return cleanUrl;
   }
 }

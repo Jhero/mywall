@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/favorites_manager.dart';
 import 'wallpaper_detail_screen.dart';
+import '../widgets/wallpaper_grid.dart';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key}) : super(key: key);
@@ -164,36 +165,9 @@ class _MyHomePageState extends State<MyHomePage> {
               
               const SizedBox(height: 20),
               
-              // Wallpaper Grid
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildWallpaperItem('assets/leaf.png', ratio: 16/9),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildWallpaperItem('assets/easter_eggs.png', ratio: 9/16),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildWallpaperItem('assets/minimal.png', ratio: 16/9),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _buildWallpaperItem('assets/dark.png', ratio: 9/16),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+              // Use WallpaperGrid widget with local assets
+              WallpaperGrid(
+                // No parameters needed for remote galleries
               ),
               
               const SizedBox(height: 20),
@@ -233,78 +207,4 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
-
-  Widget _buildWallpaperItem(String imagePath, {required double ratio}) {
-    // Check if this wallpaper is favorited
-    final bool isFavorite = FavoritesManager().isFavorite(imagePath);
-    
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => WallpaperDetailScreen(
-              imagePath: imagePath,
-              onFavoriteChanged: () {
-                // Refresh the UI when returning from detail screen
-                setState(() {});
-              },
-            ),
-          ),
-        );
-      },
-      child: Hero(
-        tag: imagePath,
-        child: AspectRatio(
-          aspectRatio: ratio,
-          child: Stack(
-            children: [
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: AssetImage(imagePath),
-                    fit: BoxFit.cover,
-                  ),
-                ),
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(8),
-                        bottomRight: Radius.circular(8),
-                      ),
-                    ),
-                    child: Text(
-                      imagePath.split('/').last.split('.').first.toUpperCase(),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              // Show a favorite indicator if the wallpaper is in favorites
-              if (isFavorite)
-                const Positioned(
-                  top: 8,
-                  right: 8,
-                  child: Icon(
-                    Icons.favorite,
-                    color: Colors.red,
-                    size: 22,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }  
 }

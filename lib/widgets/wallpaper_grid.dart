@@ -2,9 +2,20 @@
 import 'package:flutter/material.dart';
 import '../models/gallery.dart';
 import '../services/gallery_service.dart';
+import '../services/favorites_manager.dart';
+import '../screens/wallpaper_detail_screen.dart';
 
 class WallpaperGrid extends StatefulWidget {
-  const WallpaperGrid({Key? key}) : super(key: key);
+  final List<String>? wallpaperImages; // For local assets
+  final Function(String)? onWallpaperTap; // Callback for asset tap
+  final bool useLocalAssets; // Flag to determine data source
+
+  const WallpaperGrid({
+    Key? key,
+    this.wallpaperImages,
+    this.onWallpaperTap,
+    this.useLocalAssets = false,
+  }) : super(key: key);
 
   @override
   State<WallpaperGrid> createState() => _WallpaperGridState();
@@ -18,7 +29,11 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   @override
   void initState() {
     super.initState();
-    _loadGalleries();
+    if (!widget.useLocalAssets) {
+      _loadGalleries();
+    } else {
+      isLoading = false;
+    }
   }
 
   Future<void> _loadGalleries() async {
@@ -45,89 +60,244 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   }
 
   Widget _buildWallpaperItem(Gallery gallery, {double ratio = 16/9}) {
-    return AspectRatio(
-      aspectRatio: ratio,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.network(
-                GalleryService.getImageUrl(gallery.imageUrl),
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    color: Colors.grey[300],
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                      ),
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Icon(
-                      Icons.error,
-                      color: Colors.red,
-                      size: 50,
-                    ),
-                  );
-                },
-              ),
-              // Gradient overlay for better text readability
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.3),
-                    ],
-                  ),
-                ),
-              ),
-              // Title overlay
-              Positioned(
-                bottom: 8,
-                left: 8,
-                right: 8,
-                child: Text(
-                  gallery.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(0, 1),
-                        blurRadius: 3,
-                        color: Colors.black45,
-                      ),
-                    ],
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+    // Check if this wallpaper is favorited
+    final bool isFavorite = FavoritesManager().isFavorite(gallery.imageUrl);
+    
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => WallpaperDetailScreen.fromGallery(gallery: gallery),
+          ),
+        );
+      },
+      child: AspectRatio(
+        aspectRatio: ratio,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  GalleryService.getImageUrl(gallery.imageUrl),
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      color: Colors.grey[300],
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          value: loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                        ),
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Icon(
+                        Icons.error,
+                        color: Colors.red,
+                        size: 50,
+                      ),
+                    );
+                  },
+                ),
+                // Gradient overlay for better text readability
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.3),
+                      ],
+                    ),
+                  ),
+                ),
+                // Favorite icon
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isFavorite) {
+                          FavoritesManager().removeFavorite(gallery.imageUrl);
+                        } else {
+                          FavoritesManager().addFavorite(gallery.imageUrl);
+                        }
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                // Title overlay
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: Text(
+                    gallery.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 3,
+                          color: Colors.black45,
+                        ),
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAssetWallpaperItem(String imagePath, {double ratio = 16/9}) {
+    // Check if this wallpaper is favorited
+    final bool isFavorite = FavoritesManager().isFavorite(imagePath);
+    
+    return GestureDetector(
+      onTap: () {
+        if (widget.onWallpaperTap != null) {
+          widget.onWallpaperTap!(imagePath);
+        }
+      },
+      child: AspectRatio(
+        aspectRatio: ratio,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  imagePath,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: Colors.grey[300],
+                      child: const Icon(
+                        Icons.error,
+                        color: Colors.red,
+                        size: 50,
+                      ),
+                    );
+                  },
+                ),
+                // Gradient overlay for better text readability
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withOpacity(0.3),
+                      ],
+                    ),
+                  ),
+                ),
+                // Favorite icon
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        if (isFavorite) {
+                          FavoritesManager().removeFavorite(imagePath);
+                        } else {
+                          FavoritesManager().addFavorite(imagePath);
+                        }
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: isFavorite ? Colors.red : Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                // Title overlay
+                Positioned(
+                  bottom: 8,
+                  left: 8,
+                  right: 8,
+                  child: Text(
+                    imagePath.split('/').last.split('.').first.toUpperCase(),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 3,
+                          color: Colors.black45,
+                        ),
+                      ],
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -183,13 +353,66 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     return Column(children: rows);
   }
 
+  Widget _buildAssetGrid() {
+    if (widget.wallpaperImages == null || widget.wallpaperImages!.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Text(
+            'No wallpapers found',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+        ),
+      );
+    }
+
+    List<Widget> rows = [];
+    final images = widget.wallpaperImages!;
+    
+    for (int i = 0; i < images.length; i += 2) {
+      Widget leftItem = Expanded(
+        child: _buildAssetWallpaperItem(
+          images[i],
+          ratio: i % 4 == 0 ? 16/9 : 9/16, // Alternate ratios
+        ),
+      );
+
+      Widget rightItem = i + 1 < images.length
+          ? Expanded(
+              child: _buildAssetWallpaperItem(
+                images[i + 1],
+                ratio: i % 4 == 0 ? 9/16 : 16/9, // Alternate ratios
+              ),
+            )
+          : const Expanded(child: SizedBox());
+
+      rows.add(
+        Row(
+          children: [
+            leftItem,
+            const SizedBox(width: 8),
+            rightItem,
+          ],
+        ),
+      );
+
+      if (i + 2 < images.length) {
+        rows.add(const SizedBox(height: 8));
+      }
+    }
+
+    return Column(children: rows);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          if (isLoading)
+          if (widget.useLocalAssets)
+            _buildAssetGrid()
+          else if (isLoading)
             const Center(
               child: Padding(
                 padding: EdgeInsets.all(20),
