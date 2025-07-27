@@ -9,12 +9,14 @@ class WallpaperGrid extends StatefulWidget {
   final List<String>? wallpaperImages; // For local assets
   final Function(String)? onWallpaperTap; // Callback for asset tap
   final bool useLocalAssets; // Flag to determine data source
+  final String? searchQuery; // Search query for API galleries
 
   const WallpaperGrid({
     Key? key,
     this.wallpaperImages,
     this.onWallpaperTap,
     this.useLocalAssets = false,
+    this.searchQuery,
   }) : super(key: key);
 
   @override
@@ -36,9 +38,30 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     }
   }
 
+  @override
+  void didUpdateWidget(WallpaperGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.useLocalAssets && 
+        (oldWidget.searchQuery != widget.searchQuery || 
+         oldWidget.useLocalAssets != widget.useLocalAssets)) {
+      _loadGalleries();
+    }
+  }
+
   Future<void> _loadGalleries() async {
     try {
-      final fetchedGalleries = await GalleryService.fetchGalleries();
+      setState(() {
+        isLoading = true;
+        errorMessage = null;
+      });
+      
+      List<Gallery> fetchedGalleries;
+      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+        fetchedGalleries = await GalleryService.searchGalleries(widget.searchQuery!);
+      } else {
+        fetchedGalleries = await GalleryService.fetchGalleries();
+      }
+      
       setState(() {
         galleries = fetchedGalleries;
         isLoading = false;
@@ -52,10 +75,6 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   }
 
   Future<void> _refreshGalleries() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
     await _loadGalleries();
   }
 

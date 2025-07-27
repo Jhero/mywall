@@ -19,11 +19,37 @@ class GalleryService {
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['status'] == true) {
-          return (jsonData['data'] as List)
+          return (jsonData['data']['data'] as List)
               .map((item) => Gallery.fromJson(item))
               .toList();
         } else {
           throw Exception(jsonData['message'] ?? 'Failed to fetch galleries');
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Gallery>> searchGalleries(String query) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/galleries?category_id=$query'),
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['status'] == true) {
+          return (jsonData['data']['data'] as List)
+              .map((item) => Gallery.fromJson(item))
+              .toList();
+        } else {
+          throw Exception(jsonData['message'] ?? 'Failed to search galleries');
         }
       } else {
         throw Exception('Server error: ${response.statusCode}');

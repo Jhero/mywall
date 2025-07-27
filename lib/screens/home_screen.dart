@@ -12,9 +12,15 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   TextEditingController searchController = TextEditingController();
-  List<String> allWallpapers = ['Nature', 'City', 'Abstract', 'Animals', 'Landscape', 'Space'];
-  List<String> filteredWallpapers = [];
+  List<Map<String, dynamic>> allWallpapers = [
+    {'id': '1', 'name': 'Alam'},
+    {'id': '2', 'name': 'Wild Life'},
+    {'id': '3', 'name': 'Nature'},
+    {'id': '4', 'name': 'City'},
+  ];
+  List<Map<String, dynamic>> filteredWallpapers = [];
   bool isSearching = false;
+  String? currentSearchQuery; // Track current search query for API
   
   // Add a list of wallpaper image paths
   final List<String> wallpaperImages = [
@@ -35,12 +41,38 @@ class _MyHomePageState extends State<MyHomePage> {
       isSearching = query.isNotEmpty;
       if (query.isEmpty) {
         filteredWallpapers = List.from(allWallpapers);
+        currentSearchQuery = null; // Clear search query
       } else {
         filteredWallpapers = allWallpapers
-            .where((item) => item.toLowerCase().contains(query.toLowerCase()))
+            .where((item) => item['name'].toLowerCase().contains(query.toLowerCase()))
             .toList();
       }
     });
+  }
+
+  void onSearchResultTap(Map<String, dynamic> selectedWallpaper) {
+    setState(() {
+      searchController.text = selectedWallpaper['name'];
+      isSearching = false;
+      currentSearchQuery = selectedWallpaper['id']; // Set search query for API using ID
+    });
+  }
+
+  void clearSearch() {
+    setState(() {
+      searchController.clear();
+      isSearching = false;
+      currentSearchQuery = null;
+      filteredWallpapers = List.from(allWallpapers);
+    });
+  }
+
+  String _getWallpaperNameById(String id) {
+    final wallpaper = allWallpapers.firstWhere(
+      (item) => item['id'] == id,
+      orElse: () => {'id': '', 'name': 'Unknown'},
+    );
+    return wallpaper['name'];
   }
 
   @override
@@ -118,33 +150,43 @@ class _MyHomePageState extends State<MyHomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Search Results (${filteredWallpapers.length})',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Search Results (${filteredWallpapers.length})',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: clearSearch,
+                            icon: const Icon(Icons.clear, size: 16),
+                            label: const Text('Clear'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.grey[600],
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       Wrap(
                         spacing: 8,
                         runSpacing: 8,
-                        children: filteredWallpapers.map((wallpaper) => Chip(
-                          label: Text(wallpaper),
-                          backgroundColor: Colors.blue[100],
-                          onDeleted: () {
-                            // Simulate selecting a search result
-                            setState(() {
-                              searchController.text = wallpaper;
-                              isSearching = false;
-                              // In a real app, you would navigate to wallpaper details here
-                            });
-                          },
+                        children: filteredWallpapers.map((wallpaper) => GestureDetector(
+                          onTap: () => onSearchResultTap(wallpaper),
+                          child: Chip(
+                            label: Text(wallpaper['name']),
+                            backgroundColor: Colors.blue[100],
+                            deleteIcon: const Icon(Icons.search, size: 18),
+                            onDeleted: () => onSearchResultTap(wallpaper),
+                          ),
                         )).toList(),
                       ),
                     ],
                   ),
-                ),              
+                ),
                             
               const SizedBox(height: 20),
               
@@ -155,7 +197,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
-                    _buildCategoryItem('Street Art', 'assets/street_art.png'),
+                    _buildCategoryItem('Alam', 'assets/street_art.png'),
                     _buildCategoryItem('Wild Life', 'assets/wildlife.png'),
                     _buildCategoryItem('Nature', 'assets/nature.png'),
                     _buildCategoryItem('City', 'assets/city.png'),
@@ -165,9 +207,37 @@ class _MyHomePageState extends State<MyHomePage> {
               
               const SizedBox(height: 20),
               
-              // Use WallpaperGrid widget with local assets
+              // Show search status if there's an active search
+              if (currentSearchQuery != null && currentSearchQuery!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.search, color: Colors.blue[600], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Showing results for "${_getWallpaperNameById(currentSearchQuery!)}"',
+                          style: TextStyle(
+                            color: Colors.blue[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: clearSearch,
+                        child: const Text('Clear'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              // Use WallpaperGrid widget with API galleries
               WallpaperGrid(
-                // No parameters needed for remote galleries
+                searchQuery: currentSearchQuery,
               ),
               
               const SizedBox(height: 20),
