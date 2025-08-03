@@ -49,9 +49,15 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   @override
   void initState() {
     super.initState();
-    imageIdentifier = widget.gallery!.imageUrl;
-    title = widget.gallery!.title;
-    description = widget.gallery!.description;
+    if (widget.gallery != null) {
+      imageIdentifier = widget.gallery!.imageUrl;
+      title = widget.gallery!.title;
+      description = widget.gallery!.description;
+    } else {
+      imageIdentifier = widget.imagePath!;
+      title = 'Local Wallpaper';
+      description = '';
+    }
     isFavorite = FavoritesManager().isFavorite(imageIdentifier);
   }
 
@@ -66,41 +72,50 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   }
 
   Widget _buildImage() {
-    final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
-    return FutureBuilder<http.Response>(
-      future: http.get(
-        Uri.parse(imageUrl),
-        headers: {
-          'X-API-Key': GalleryService.apiKey,
+    if (widget.gallery != null) {
+      // Handle gallery images (from API)
+      final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+      return FutureBuilder<http.Response>(
+        future: http.get(
+          Uri.parse(imageUrl),
+          headers: {
+            'X-API-Key': GalleryService.apiKey,
+          },
+        ),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Colors.white));
+          } else if (snapshot.hasError) {
+            return const Center(
+              child: Icon(
+                Icons.error,
+                color: Colors.red,
+                size: 100,
+              ),
+            );
+          } else if (snapshot.hasData && snapshot.data!.statusCode == 200) {
+            return Image.memory(
+              snapshot.data!.bodyBytes,
+              fit: BoxFit.contain,
+            );
+          } else {
+            return const Center(
+              child: Icon(
+                Icons.error,
+                color: Colors.red,
+                size: 100,
+              ),
+            );
+          }
         },
-      ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: Colors.white));
-        } else if (snapshot.hasError) {
-          return const Center(
-            child: Icon(
-              Icons.error,
-              color: Colors.red,
-              size: 100,
-            ),
-          );
-        } else if (snapshot.hasData && snapshot.data!.statusCode == 200) {
-          return Image.memory(
-            snapshot.data!.bodyBytes,
-            fit: BoxFit.contain,
-          );
-        } else {
-          return const Center(
-            child: Icon(
-              Icons.error,
-              color: Colors.red,
-              size: 100,
-            ),
-          );
-        }
-      },
-    );
+      );
+    } else {
+      // Handle local asset images
+      return Image.asset(
+        widget.imagePath!,
+        fit: BoxFit.contain,
+      );
+    }
   }
 
   @override

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/favorites_manager.dart';
+import '../services/favorites_manager.dart';
 import 'wallpaper_detail_screen.dart';
 import '../widgets/wallpaper_grid.dart';
 

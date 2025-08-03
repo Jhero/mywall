@@ -2,10 +2,11 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/gallery.dart';
+import '../config/env_config.dart';
 
 class GalleryService {
-  static const String baseUrl = 'http://192.168.1.7:8080';
-  static const String apiKey = 'ebe2540a9634855cb916d8b2d7bde2ad2154dd46f4dc3a0727a93a17779a98d8'; // Replace with your actual API key
+  static String get baseUrl => EnvConfig.baseUrl;
+  static String get apiKey => EnvConfig.apiKey;
 
   static Future<List<Gallery>> fetchGalleries() async {
     try {
