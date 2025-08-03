@@ -82,7 +82,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           // For API images, create a Gallery object from the stored URL
           final gallery = Gallery(
             id: wallpaper.hashCode, // Use hash as ID (int)
-            title: _getDisplayName(wallpaper),
+            title: "",
             description: 'Favorite wallpaper',
             imageUrl: wallpaper,
             categoryId: 1, // Default category ID
@@ -174,29 +174,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   onPressed: () {
                     _favoritesManager.removeFavorite(wallpaper);
                   },
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.5),
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                ),
-                child: Text(
-                  _getDisplayName(wallpaper),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
                 ),
               ),
             ),
