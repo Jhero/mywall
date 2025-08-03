@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/favorites_manager.dart';
 import '../services/gallery_service.dart';
+import '../models/gallery.dart';
 import 'wallpaper_detail_screen.dart';
 import 'package:http/http.dart' as http;
 
@@ -78,11 +79,27 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ),
           );
         } else {
-          // For API images, we need to create a Gallery object
-          // Since we don't have the full Gallery data, we'll show a placeholder
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('API image details not available'),
+          // For API images, create a Gallery object from the stored URL
+          final gallery = Gallery(
+            id: wallpaper.hashCode, // Use hash as ID (int)
+            title: _getDisplayName(wallpaper),
+            description: 'Favorite wallpaper',
+            imageUrl: wallpaper,
+            categoryId: 1, // Default category ID
+            userId: 1, // Default user ID
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => WallpaperDetailScreen.fromGallery(
+                gallery: gallery,
+                onFavoriteChanged: () {
+                  // The listener will automatically refresh the UI
+                },
+              ),
             ),
           );
         }
