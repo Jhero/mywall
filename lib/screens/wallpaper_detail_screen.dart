@@ -8,6 +8,8 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
+
 
 class WallpaperDetailScreen extends StatefulWidget {
   final Gallery? gallery;
@@ -77,102 +79,120 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
 
   Future<void> _setAsWallpaper() async {
     try {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const AlertDialog(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Text("Preparing wallpaper..."),
-              ],
-            ),
-          );
-        },
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Preparing wallpaper..."),
+            ],
+          ),
+        ),
       );
 
-      Uint8List imageBytes;
+      String filePath;
       
       if (widget.gallery != null) {
-        // For API images, download the image first
         final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
         final response = await http.get(
           Uri.parse(imageUrl),
-          headers: {
-            'X-API-Key': GalleryService.apiKey,
-          },
+          headers: {'X-API-Key': GalleryService.apiKey},
         );
         
         if (response.statusCode != 200) {
           throw Exception('Failed to download image');
         }
         
-        imageBytes = response.bodyBytes;
+        final tempDir = await getTemporaryDirectory();
+        filePath = '${tempDir.path}/wallpaper_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await File(filePath).writeAsBytes(response.bodyBytes);
       } else {
-        // For local assets, load from assets
-        final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
-        imageBytes = data.buffer.asUint8List();
+        filePath = widget.imagePath!;
       }
 
-      // Save image to documents directory
-      final documentsDir = await getApplicationDocumentsDirectory();
-      final wallpaperDir = Directory('${documentsDir.path}/wallpapers');
-      if (!await wallpaperDir.exists()) {
-        await wallpaperDir.create(recursive: true);
-      }
-      
-      final wallpaperFile = File('${wallpaperDir.path}/wallpaper_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await wallpaperFile.writeAsBytes(imageBytes);
-
-      // Close loading dialog
       Navigator.of(context).pop();
 
-      // Show success dialog with instructions
-      showDialog(
+      // Show location selection dialog
+      final location = await showDialog<int>(
         context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Wallpaper Saved!'),
-            content: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('The wallpaper has been saved to your device.'),
-                SizedBox(height: 16),
-                Text('To set it as wallpaper:'),
-                SizedBox(height: 8),
-                Text('1. Go to your device Settings'),
-                Text('2. Find "Wallpaper" or "Display"'),
-                Text('3. Select "Set wallpaper"'),
-                Text('4. Choose the saved image'),
-              ],
+        builder: (context) => AlertDialog(
+          title: const Text('Set Wallpaper'),
+          content: const Text('Where would you like to set this wallpaper?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, WallpaperManager.HOME_SCREEN),
+              child: const Text('Home Screen'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          );
-        },
+            TextButton(
+              onPressed: () => Navigator.pop(context, WallpaperManager.LOCK_SCREEN),
+              child: const Text('Lock Screen'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, WallpaperManager.BOTH_SCREEN),
+              child: const Text('Both'),
+            ),
+          ],
+        ),
       );
 
+      if (location != null) {
+        await _applyWallpaper(filePath, location);
+      }
+
     } catch (e) {
-      // Close loading dialog
       Navigator.of(context).pop();
-      
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to save wallpaper: ${e.toString()}'),
+          content: Text('Error: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
     }
   }
+
+  Future<void> _applyWallpaper(String filePath, int location) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Applying wallpaper..."),
+            ],
+          ),
+        ),
+      );
+
+      await WallpaperManager.setWallpaperFromFile(
+        filePath, 
+        location
+      );
+
+      Navigator.of(context).pop();
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Wallpaper set successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to apply wallpaper: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
 
   Future<void> _shareWallpaper() async {
     try {
