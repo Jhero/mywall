@@ -36,4 +36,9 @@ class FavoritesManager extends ChangeNotifier {
     _favorites.clear();
     notifyListeners();
   }
+
+  // Get all favorites as a list
+  List<String> getAllFavorites() {
+    return _favorites.toList();
+  }
 }

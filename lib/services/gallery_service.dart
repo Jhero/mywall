@@ -2,10 +2,11 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../models/gallery.dart';
+import '../config/env_config.dart';
 
 class GalleryService {
-  static const String baseUrl = 'http://192.168.1.7:8080';
-  static const String apiKey = 'ebe2540a9634855cb916d8b2d7bde2ad2154dd46f4dc3a0727a93a17779a98d8'; // Replace with your actual API key
+  static String get baseUrl => EnvConfig.baseUrl;
+  static String get apiKey => EnvConfig.apiKey;
 
   static Future<List<Gallery>> fetchGalleries() async {
     try {
@@ -19,11 +20,37 @@ class GalleryService {
       if (response.statusCode == 200) {
         final jsonData = json.decode(response.body);
         if (jsonData['status'] == true) {
-          return (jsonData['data'] as List)
+          return (jsonData['data']['data'] as List)
               .map((item) => Gallery.fromJson(item))
               .toList();
         } else {
           throw Exception(jsonData['message'] ?? 'Failed to fetch galleries');
+        }
+      } else {
+        throw Exception('Server error: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  static Future<List<Gallery>> searchGalleries(String query) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/api/galleries?category_id=$query'),
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final jsonData = json.decode(response.body);
+        if (jsonData['status'] == true) {
+          return (jsonData['data']['data'] as List)
+              .map((item) => Gallery.fromJson(item))
+              .toList();
+        } else {
+          throw Exception(jsonData['message'] ?? 'Failed to search galleries');
         }
       } else {
         throw Exception('Server error: ${response.statusCode}');
