@@ -12,9 +12,10 @@ dependencies:
     sdk: flutter
   http: ^1.1.0
   cupertino_icons: ^1.0.8
-  share_plus: ^7.1.0
+  share_plus: ^11.1.0
   path_provider: ^2.0.15
-  flutter_dotenv: ^5.1.0
+  flutter_dotenv: ^6.0.0
+  wallpaper_manager_flutter: 1.0.1
   # wallpaper_manager_flutter: 1.0.1
   # flutter_wallpaper_manager: ^0.0.4  # Add this line
   # wallpaper_manager: ^1.1.3
@@ -23,14 +24,14 @@ dependencies:
   # wallpaper_manager: ^1.1.3
   # wallpaper_manager_flutter: ^0.0.3
   # wallpaper_manager_flutter: ^0.0.3
-  async_wallpaper: 2.1.0
+  # wallpaper_manager_flutter: ^0.4.0
 
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true

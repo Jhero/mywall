@@ -8,8 +8,13 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:flutter_wallpaper_manager/flutter_wallpaper_manager.dart';
+import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
 
+class WallpaperLocation {
+  static const int HOME_SCREEN = WallpaperManagerFlutter.homeScreen;
+  static const int LOCK_SCREEN = WallpaperManagerFlutter.lockScreen;
+  static const int BOTH_SCREEN = WallpaperManagerFlutter.bothScreens;
+}
 
 class WallpaperDetailScreen extends StatefulWidget {
   final Gallery? gallery;
@@ -51,6 +56,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   late String imageIdentifier;
   late String title;
   late String description;
+  final wallpaperManager = WallpaperManagerFlutter();
 
   @override
   void initState() {
@@ -113,7 +119,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         filePath = widget.imagePath!;
       }
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(); 
 
       // Show location selection dialog
       final location = await showDialog<int>(
@@ -123,15 +129,15 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
           content: const Text('Where would you like to set this wallpaper?'),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, WallpaperManager.HOME_SCREEN),
+              onPressed: () => Navigator.pop(context, WallpaperLocation.HOME_SCREEN),
               child: const Text('Home Screen'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, WallpaperManager.LOCK_SCREEN),
+              onPressed: () => Navigator.pop(context, WallpaperLocation.LOCK_SCREEN),
               child: const Text('Lock Screen'),
             ),
             TextButton(
-              onPressed: () => Navigator.pop(context, WallpaperManager.BOTH_SCREEN),
+              onPressed: () => Navigator.pop(context, WallpaperLocation.BOTH_SCREEN),
               child: const Text('Both'),
             ),
           ],
@@ -169,19 +175,33 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         ),
       );
 
-      await WallpaperManager.setWallpaperFromFile(
-        filePath, 
-        location
+      // For wallpaper_manager_flutter version 1.0.1
+      // Create a File object from the path
+      File imageFile = File(filePath);
+      
+      // Use the correct API according to the documentation
+      bool result = await wallpaperManager.setWallpaper(
+        imageFile,
+        location, // Use the location parameter (homeScreen, lockScreen, bothScreens)
       );
 
       Navigator.of(context).pop();
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Wallpaper set successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (result) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Wallpaper set successfully! 🎉'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to set wallpaper. Please try again.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     } catch (e) {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -192,7 +212,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       );
     }
   }
-
 
   Future<void> _shareWallpaper() async {
     try {
