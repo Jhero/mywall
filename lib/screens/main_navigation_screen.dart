@@ -14,7 +14,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
   
   final List<Widget> _screens = [
-    const MyHomePage(),
+    MyHomePage(),
     const FavoritesScreen(),
     const AboutScreen(),
   ];
