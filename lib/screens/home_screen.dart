@@ -14,66 +14,41 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   TextEditingController searchController = TextEditingController();
-  ScrollController _scrollController = ScrollController();
   
   List<Map<String, dynamic>> allWallpapers = [];
   List<Map<String, dynamic>> filteredWallpapers = [];
   bool isSearching = false;
   bool isLoading = true;
-  bool isLoadingMore = false;
-  bool hasMoreData = true;
   String? currentSearchQuery;
   String? errorMessage;
-  
-  // Pagination
-  int currentPage = 1;
-  int itemsPerPage = 20;
   
   // API Configuration
   static String get baseUrl => EnvConfig.baseUrl;
   static String get apiKey => EnvConfig.apiKey;
 
-  // Default images mapping for categories (fallback)
-  final Map<String, String> categoryImages = {
-    'default': 'assets/default_category.png',
-  };
+  // Key untuk refresh WallpaperGrid
+  Key _wallpaperGridKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
     fetchCategories();
-    _setupScrollListener();
   }
 
   @override
   void dispose() {
     searchController.dispose();
-    _scrollController.dispose();
     super.dispose();
   }
 
-  // Setup scroll listener for lazy loading
-  void _setupScrollListener() {
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels >= 
-          _scrollController.position.maxScrollExtent - 200) {
-        // Load more data when user is 200 pixels away from bottom
-        _loadMoreCategories();
-      }
-    });
-  }
-
-  // Convert API image path to proper URL format for HTTP requests with authorization
+  // Convert API image path to proper URL format
   String convertImagePathToUrl(String imagePath) {
-    // Convert backslashes to forward slashes and remove 'uploads' prefix if present
     String cleanPath = imagePath.replaceAll('\\', '/');
     
-    // Remove 'uploads/' prefix if it exists
     if (cleanPath.startsWith('uploads/')) {
-      cleanPath = cleanPath.substring(8); // Remove 'uploads/'
+      cleanPath = cleanPath.substring(8);
     }
     
-    // Construct the full URL for authorized image request
     return '$baseUrl/api/images/$cleanPath';
   }
 
@@ -81,7 +56,6 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<String?> fetchAuthorizedImageUrl(String imagePath) async {
     try {
       String imageUrl = convertImagePathToUrl(imagePath);
-      print('Fetching authorized image from: $imageUrl');
       
       final response = await http.get(
         Uri.parse(imageUrl),
@@ -92,8 +66,6 @@ class _MyHomePageState extends State<MyHomePage> {
       ).timeout(Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        // If the request is successful, return the URL for use with network image
-        // The actual image data will be fetched by Flutter's Image.network widget
         return imageUrl;
       } else {
         print('Failed to authorize image: ${response.statusCode}');
@@ -105,30 +77,17 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Modified to support pagination
   Future<void> fetchCategories({bool isRefresh = false}) async {
     if (!mounted) return;
     
-    if (isRefresh) {
-      setState(() {
-        currentPage = 1;
-        hasMoreData = true;
-        allWallpapers.clear();
-        filteredWallpapers.clear();
-      });
-    }
-    
     setState(() {
-      if (isRefresh) {
-        isLoading = true;
-      }
+      isLoading = true;
       errorMessage = null;
     });
 
     try {
-      String url = '$baseUrl/api/categories?page=$currentPage&limit=$itemsPerPage';
+      String url = '$baseUrl/api/categories';
       print('Fetching categories from: $url');
-      print('Using API Key: ${apiKey.isNotEmpty ? "***" : "EMPTY"}');
 
       final response = await http.get(
         Uri.parse(url),
@@ -137,9 +96,6 @@ class _MyHomePageState extends State<MyHomePage> {
           'Content-Type': 'application/json',
         },
       ).timeout(Duration(seconds: 30));
-
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
 
       if (!mounted) return;
 
@@ -153,7 +109,6 @@ class _MyHomePageState extends State<MyHomePage> {
           categories = List<Map<String, dynamic>>.from(data);
         } else if (data is Map) {
           if (data.containsKey('status') && data['status'] == true) {
-            // Handle response with status wrapper
             if (data.containsKey('data')) {
               var dataField = data['data'];
               if (dataField is List) {
@@ -174,25 +129,15 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         }
 
-        // Check if we have more data
-        if (categories.length < itemsPerPage) {
-          hasMoreData = false;
-        }
-
         // Process categories to fetch authorized image URLs
         List<Future<void>> imageFutures = [];
         for (var category in categories) {
           if (category.containsKey('image_url') && category['image_url'] != null) {
             String originalPath = category['image_url'].toString();
             
-            // Create future to fetch authorized image URL
             Future<void> imageFuture = fetchAuthorizedImageUrl(originalPath).then((authorizedUrl) {
               if (authorizedUrl != null) {
                 category['authorized_image_url'] = authorizedUrl;
-                print('Original image path: $originalPath');
-                print('Authorized image URL: $authorizedUrl');
-              } else {
-                print('Failed to authorize image for: $originalPath');
               }
             });
             
@@ -200,7 +145,6 @@ class _MyHomePageState extends State<MyHomePage> {
           }
         }
         
-        // Wait for all image authorization requests to complete (with timeout)
         try {
           await Future.wait(imageFutures).timeout(Duration(seconds: 30));
         } catch (e) {
@@ -208,25 +152,13 @@ class _MyHomePageState extends State<MyHomePage> {
         }
 
         setState(() {
-          if (isRefresh || currentPage == 1) {
-            allWallpapers = categories;
-          } else {
-            allWallpapers.addAll(categories);
-          }
-          
-          // Update filtered wallpapers based on current search
-          if (isSearching && searchController.text.isNotEmpty) {
-            filterSearchResults(searchController.text);
-          } else {
-            filteredWallpapers = List.from(allWallpapers);
-          }
-          
+          allWallpapers = categories;
+          filteredWallpapers = List.from(allWallpapers);
           isLoading = false;
-          isLoadingMore = false;
           errorMessage = null;
         });
 
-        print('Successfully loaded ${categories.length} categories (Page: $currentPage)');
+        print('Successfully loaded ${categories.length} categories');
         
       } else {
         throw HttpException('Server returned ${response.statusCode}: ${response.reasonPhrase}');
@@ -251,60 +183,26 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
-  // Load more categories for pagination
-  Future<void> _loadMoreCategories() async {
-    if (isLoadingMore || !hasMoreData || isLoading) return;
-
-    setState(() {
-      isLoadingMore = true;
-    });
-
-    currentPage++;
-    await fetchCategories();
-  }
-
   void _handleError(String message) {
     if (!mounted) return;
     
     setState(() {
       isLoading = false;
-      isLoadingMore = false;
       errorMessage = message;
-      
-      // Set fallback categories only if we don't have any data
-      if (allWallpapers.isEmpty) {
-        allWallpapers = [
-          {'id': '1', 'name': 'Alam'},
-          {'id': '2', 'name': 'Wild Life'},
-          {'id': '3', 'name': 'Nature'},
-          {'id': '4', 'name': 'City'},
-        ];
-        filteredWallpapers = allWallpapers;
-        hasMoreData = false;
-      }
     });
   }
 
-  // Pull to refresh function
-  Future<void> _onRefresh() async {
-    await fetchCategories(isRefresh: true);
-  }
-
-  // Manual refresh function
   Future<void> refreshCategories() async {
     await fetchCategories(isRefresh: true);
   }
 
   String getCategoryImage(Map<String, dynamic> category) {
-    // First try to get the authorized image URL from API
     if (category.containsKey('authorized_image_url') && category['authorized_image_url'] != null) {
       return category['authorized_image_url'].toString();
     }
     
-    // Fallback to local assets based on category name
-    String categoryName = category['name']?.toString() ?? '';
-    String lowerName = categoryName.toLowerCase();
-    return categoryImages[lowerName] ?? categoryImages['default']!;
+    // Fallback untuk image lokal jika diperlukan
+    return 'assets/default_category.png';
   }
 
   void filterSearchResults(String query) {
@@ -335,15 +233,20 @@ class _MyHomePageState extends State<MyHomePage> {
       isSearching = false;
       currentSearchQuery = null;
       filteredWallpapers = List.from(allWallpapers);
+      _refreshWallpaperGrid();
     });
   }
 
-  String _getWallpaperNameById(String id) {
-    final wallpaper = allWallpapers.firstWhere(
-      (item) => item['id']?.toString() == id,
-      orElse: () => {'id': '', 'name': 'Unknown'},
-    );
-    return wallpaper['name']?.toString() ?? 'Unknown';
+  void _refreshWallpaperGrid() {
+    setState(() {
+      _wallpaperGridKey = UniqueKey();
+    });
+  }
+
+  // Combined refresh function untuk categories dan wallpaper grid
+  Future<void> _refreshAll() async {
+    await fetchCategories(isRefresh: true);
+    _refreshWallpaperGrid();
   }
 
   @override
@@ -378,193 +281,203 @@ class _MyHomePageState extends State<MyHomePage> {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh),
-            onPressed: isLoading ? null : refreshCategories,
-            tooltip: 'Refresh categories',
+            onPressed: isLoading ? null : _refreshAll,
+            tooltip: 'Refresh all data',
           ),
         ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: _onRefresh,
+          onRefresh: _refreshAll,
           child: CustomScrollView(
-            controller: _scrollController,
+            physics: AlwaysScrollableScrollPhysics(),
             slivers: [
+              // Header section
               SliverToBoxAdapter(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 10),
-                    
-                    // Search Bar
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F8FF),
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: searchController,
-                              onChanged: filterSearchResults,
-                              decoration: const InputDecoration(
-                                hintText: 'Search Wallpaper',
-                                hintStyle: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 18,
-                                ),
-                                border: InputBorder.none,
-                              ),
-                            ),
-                          ),
-                          Icon(
-                            Icons.search,
-                            color: Colors.grey[800],
-                            size: 28,
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Search Results
-                    if (isSearching) 
-                      Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Search Results (${filteredWallpapers.length})',
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                TextButton.icon(
-                                  onPressed: clearSearch,
-                                  icon: const Icon(Icons.clear, size: 16),
-                                  label: const Text('Clear'),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: filteredWallpapers.map((wallpaper) => GestureDetector(
-                                onTap: () => onSearchResultTap(wallpaper),
-                                child: Chip(
-                                  label: Text(wallpaper['name']?.toString() ?? 'Unknown'),
-                                  backgroundColor: Colors.blue[100],
-                                  deleteIcon: const Icon(Icons.search, size: 18),
-                                  onDeleted: () => onSearchResultTap(wallpaper),
-                                ),
-                              )).toList(),
-                            ),
-                          ],
-                        ),
-                      ),
-                                  
-                    const SizedBox(height: 20),
-                    
-                    // Categories Section
-                    SizedBox(
-                      height: 100,
-                      child: _buildCategoriesSection(),
-                    ),              
-                    
-                    const SizedBox(height: 20),
-                    
-                    // Search Status
-                    if (currentSearchQuery != null && currentSearchQuery!.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Row(
-                          children: [
-                            Icon(Icons.search, color: Colors.blue[600], size: 20),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Showing results for "${_getWallpaperNameById(currentSearchQuery!)}"',
-                                style: TextStyle(
-                                  color: Colors.blue[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: clearSearch,
-                              child: const Text('Clear'),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+                child: _buildHeaderSection(),
               ),
               
-              // Wallpaper Grid - now as a sliver
-              SliverToBoxAdapter(
-                child: WallpaperGrid(
-                  searchQuery: currentSearchQuery,
-                ),
-              ),
-              
-              // Loading indicator at bottom
-              if (isLoadingMore)
+              // Search Results section
+              if (isSearching && filteredWallpapers.isNotEmpty)
                 SliverToBoxAdapter(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: const Center(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Loading more...'),
-                        ],
-                      ),
-                    ),
-                  ),
+                  child: _buildSearchResultsSection(),
                 ),
               
-              // End indicator
-              if (!hasMoreData && allWallpapers.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    child: const Center(
-                      child: Text(
-                        'No more categories to load',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                
+              // Main content section
               SliverToBoxAdapter(
-                child: const SizedBox(height: 20),
+                child: _buildMainContent(),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderSection() {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 10),
+          
+          // Search Bar
+          Container(
+            height: 50,
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F8FF),
+              borderRadius: BorderRadius.circular(30),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: filterSearchResults,
+                    decoration: const InputDecoration(
+                      hintText: 'Search Wallpaper',
+                      hintStyle: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 18,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.symmetric(vertical: 15),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 20),
+                  child: Icon(
+                    Icons.search,
+                    color: Colors.grey[800],
+                    size: 28,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 15),
+          
+          // Categories Section
+          SizedBox(
+            height: 100,
+            child: _buildCategoriesSection(),
+          ),              
+          
+          const SizedBox(height: 15),
+          
+          // Search Status
+          if (currentSearchQuery != null && currentSearchQuery!.isNotEmpty)
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(Icons.search, color: Colors.blue[600], size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Results for "${_getWallpaperNameById(currentSearchQuery!)}"',
+                      style: TextStyle(
+                        color: Colors.blue[600],
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: clearSearch,
+                    child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          
+          // Divider
+          Container(
+            height: 1,
+            margin: EdgeInsets.symmetric(horizontal: 16),
+            color: Colors.grey[200],
+          ),
+          
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchResultsSection() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Search Results (${filteredWallpapers.length})',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton(
+                onPressed: clearSearch,
+                child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.grey[600],
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: filteredWallpapers.map((wallpaper) => 
+                GestureDetector(
+                  onTap: () => onSearchResultTap(wallpaper),
+                  child: Container(
+                    margin: EdgeInsets.only(right: 8),
+                    child: Chip(
+                      label: Text(
+                        wallpaper['name']?.toString() ?? 'Unknown',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      backgroundColor: Colors.blue[100],
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                )
+              ).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    return Container(
+      height: MediaQuery.of(context).size.height - 300, // Adjusted height
+      child: WallpaperGrid(
+        key: _wallpaperGridKey,
+        searchQuery: currentSearchQuery,
+        useLocalAssets: false,
+        onRefresh: _refreshAll,
       ),
     );
   }
@@ -575,9 +488,9 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 8),
-            Text('Loading categories...'),
+            CircularProgressIndicator(strokeWidth: 2),
+            SizedBox(height: 4),
+            Text('Loading...', style: TextStyle(fontSize: 12)),
           ],
         ),
       );
@@ -588,16 +501,18 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, color: Colors.red[600], size: 32),
-            const SizedBox(height: 8),
-            Text(
-              'Failed to load categories',
-              style: TextStyle(color: Colors.red[600]),
-            ),
+            Icon(Icons.error_outline, color: Colors.red[600], size: 24),
             const SizedBox(height: 4),
+            Text(
+              'Failed to load',
+              style: TextStyle(color: Colors.red[600], fontSize: 12),
+            ),
             TextButton(
               onPressed: refreshCategories,
-              child: const Text('Retry'),
+              child: const Text('Retry', style: TextStyle(fontSize: 10)),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              ),
             ),
           ],
         ),
@@ -606,14 +521,16 @@ class _MyHomePageState extends State<MyHomePage> {
 
     if (filteredWallpapers.isEmpty) {
       return const Center(
-        child: Text('No categories available'),
+        child: Text('No categories', style: TextStyle(fontSize: 12)),
       );
     }
 
-    return ListView(
+    return ListView.builder(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      children: filteredWallpapers.map((category) {
+      itemCount: filteredWallpapers.length,
+      itemBuilder: (context, index) {
+        final category = filteredWallpapers[index];
         String categoryName = category['name']?.toString() ?? 'Unknown';
         String categoryId = category['id']?.toString() ?? '';
         String imagePath = getCategoryImage(category);
@@ -621,36 +538,36 @@ class _MyHomePageState extends State<MyHomePage> {
         return _buildCategoryItem(
           categoryName,
           imagePath,
-          category: category,
           categoryId: categoryId,
         );
-      }).toList(),
+      },
     );
   }
 
-  Widget _buildCategoryItem(String title, String imagePath, {Map<String, dynamic>? category, String? categoryId}) {
+  Widget _buildCategoryItem(String title, String imagePath, {String? categoryId}) {
     bool isNetworkImage = imagePath.startsWith('http');
     
     return Container(
+      width: 80,
       margin: const EdgeInsets.only(right: 12),
       child: GestureDetector(
         onTap: () {
-          print('Selected category: $title (ID: $categoryId)');
-          // You can add navigation or other actions here
           setState(() {
             currentSearchQuery = categoryId;
             searchController.text = title;
             isSearching = false;
+            _refreshWallpaperGrid();
           });
         },
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 80,
               height: 80,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.grey[200], // Background color while loading
+                color: Colors.grey[200],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -658,49 +575,45 @@ class _MyHomePageState extends State<MyHomePage> {
                     ? Image.network(
                         imagePath,
                         fit: BoxFit.cover,
-                        width: 80,
-                        height: 80,
                         headers: {
                           'X-API-Key': apiKey,
                         },
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                  : null,
-                              strokeWidth: 2,
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                value: loadingProgress.expectedTotalBytes != null
+                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                    : null,
+                                strokeWidth: 2,
+                              ),
                             ),
                           );
                         },
                         errorBuilder: (context, error, stackTrace) {
-                          print('Error loading network image: $imagePath');
-                          print('Error: $error');
-                          // Fallback to asset image
-                          String fallbackImage = getCategoryImageFallback(title);
-                          return Image.asset(
-                            fallbackImage,
-                            fit: BoxFit.cover,
-                            width: 80,
-                            height: 80,
+                          return Container(
+                            color: Colors.grey[300],
+                            child: Icon(
+                              Icons.image_not_supported,
+                              color: Colors.grey[600],
+                              size: 24,
+                            ),
                           );
                         },
                       )
                     : Image.asset(
                         imagePath,
                         fit: BoxFit.cover,
-                        width: 80,
-                        height: 80,
                         errorBuilder: (context, error, stackTrace) {
-                          print('Error loading asset image: $imagePath');
                           return Container(
-                            width: 80,
-                            height: 80,
                             color: Colors.grey[300],
                             child: Icon(
                               Icons.image_not_supported,
                               color: Colors.grey[600],
+                              size: 24,
                             ),
                           );
                         },
@@ -708,15 +621,12 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
             const SizedBox(height: 4),
-            SizedBox(
-              width: 80,
-              child: Text(
-                title,
-                style: const TextStyle(fontSize: 12),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -724,9 +634,11 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  // Helper method to get fallback asset image
-  String getCategoryImageFallback(String categoryName) {
-    String lowerName = categoryName.toLowerCase();
-    return categoryImages[lowerName] ?? categoryImages['default']!;
+  String _getWallpaperNameById(String id) {
+    final wallpaper = allWallpapers.firstWhere(
+      (item) => item['id']?.toString() == id,
+      orElse: () => {'id': '', 'name': 'Unknown'},
+    );
+    return wallpaper['name']?.toString() ?? 'Unknown';
   }
 }
