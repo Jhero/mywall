@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../config/env_config.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:async'; // Import untuk Stream
 
 class MyHomePage extends StatefulWidget {
   @override
@@ -29,16 +30,90 @@ class _MyHomePageState extends State<MyHomePage> {
   // Key untuk refresh WallpaperGrid
   Key _wallpaperGridKey = UniqueKey();
 
+  // StreamController untuk auto-update
+  final StreamController<bool> _updateStreamController = StreamController<bool>.broadcast();
+  Timer? _autoRefreshTimer;
+
   @override
   void initState() {
     super.initState();
     fetchCategories();
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     searchController.dispose();
+    _updateStreamController.close();
+    _autoRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  // Auto refresh setiap 30 detik
+  void _startAutoRefresh() {
+    _autoRefreshTimer = Timer.periodic(Duration(seconds: 30), (timer) {
+      _checkForNewData();
+    });
+  }
+
+  // Function untuk check data baru
+  Future<void> _checkForNewData() async {
+    try {
+      String url = '$baseUrl/api/categories';
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      ).timeout(Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        List<Map<String, dynamic>> newCategories = [];
+        
+        // Process response structure sama seperti fetchCategories
+        if (data is List) {
+          newCategories = List<Map<String, dynamic>>.from(data);
+        } else if (data is Map) {
+          if (data.containsKey('status') && data['status'] == true) {
+            if (data.containsKey('data')) {
+              var dataField = data['data'];
+              if (dataField is List) {
+                newCategories = List<Map<String, dynamic>>.from(dataField);
+              } else if (dataField is Map && dataField.containsKey('data')) {
+                newCategories = List<Map<String, dynamic>>.from(dataField['data']);
+              }
+            }
+          } else if (data.containsKey('categories')) {
+            newCategories = List<Map<String, dynamic>>.from(data['categories']);
+          } else if (data.containsKey('data')) {
+            var dataField = data['data'];
+            if (dataField is List) {
+              newCategories = List<Map<String, dynamic>>.from(dataField);
+            } else if (dataField is Map && dataField.containsKey('data')) {
+              newCategories = List<Map<String, dynamic>>.from(dataField['data']);
+            }
+          }
+        }
+
+        // Check jika ada data baru
+        if (newCategories.length > allWallpapers.length) {
+          print('New data detected! Updating...');
+          _triggerWallpaperGridUpdate();
+        }
+      }
+    } catch (e) {
+      print('Auto-refresh error: $e');
+    }
+  }
+
+  // Trigger update ke WallpaperGrid
+  void _triggerWallpaperGridUpdate() {
+    if (!_updateStreamController.isClosed) {
+      _updateStreamController.add(true);
+    }
   }
 
   // Convert API image path to proper URL format
@@ -159,6 +234,9 @@ class _MyHomePageState extends State<MyHomePage> {
         });
 
         print('Successfully loaded ${categories.length} categories');
+        
+        // Trigger update setelah data baru dimuat
+        _triggerWallpaperGridUpdate();
         
       } else {
         throw HttpException('Server returned ${response.statusCode}: ${response.reasonPhrase}');
@@ -437,7 +515,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: clearSearch,
                 child: const Text('Clear', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(
-                  foregroundColor: Colors.grey[600],
+                      foregroundColor: Colors.grey[600],
                   padding: EdgeInsets.symmetric(horizontal: 8),
                 ),
               ),
@@ -473,12 +551,13 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildMainContent() {
     return Container(
       // Height yang lebih aman dan responsif
-      height: MediaQuery.of(context).size.height * 0.6, // Gunakan persentase untuk lebih responsif
+      height: MediaQuery.of(context).size.height * 0.6,
       child: WallpaperGrid(
         key: _wallpaperGridKey,
         searchQuery: currentSearchQuery,
         useLocalAssets: false,
         onRefresh: _refreshAll,
+        updateStream: _updateStreamController.stream, // Stream untuk auto-update
       ),
     );
   }
