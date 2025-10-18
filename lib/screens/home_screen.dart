@@ -362,9 +362,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
           const SizedBox(height: 15),
           
-          // Categories Section
+          // Categories Section dengan height yang fixed TAPI TIDAK BERLEBIHAN
           SizedBox(
-            height: 100,
+            height: 110, // Reduced height untuk mencegah overflow
             child: _buildCategoriesSection(),
           ),              
           
@@ -472,7 +472,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildMainContent() {
     return Container(
-      height: MediaQuery.of(context).size.height - 300, // Adjusted height
+      // Height yang lebih aman dan responsif
+      height: MediaQuery.of(context).size.height * 0.6, // Gunakan persentase untuk lebih responsif
       child: WallpaperGrid(
         key: _wallpaperGridKey,
         searchQuery: currentSearchQuery,
@@ -481,47 +482,60 @@ class _MyHomePageState extends State<MyHomePage> {
       ),
     );
   }
-
+  
   Widget _buildCategoriesSection() {
     if (isLoading && allWallpapers.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(strokeWidth: 2),
-            SizedBox(height: 4),
-            Text('Loading...', style: TextStyle(fontSize: 12)),
-          ],
+      return SizedBox(
+        height: 100, // Reduced height
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(height: 4),
+              Text('Loading...', style: TextStyle(fontSize: 12)),
+            ],
+          ),
         ),
       );
     }
 
     if (errorMessage != null && allWallpapers.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, color: Colors.red[600], size: 24),
-            const SizedBox(height: 4),
-            Text(
-              'Failed to load',
-              style: TextStyle(color: Colors.red[600], fontSize: 12),
-            ),
-            TextButton(
-              onPressed: refreshCategories,
-              child: const Text('Retry', style: TextStyle(fontSize: 10)),
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      return SizedBox(
+        height: 100, // Reduced height
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, color: Colors.red[600], size: 20),
+              SizedBox(height: 4),
+              Text(
+                'Failed to load',
+                style: TextStyle(color: Colors.red[600], fontSize: 10),
               ),
-            ),
-          ],
+              TextButton(
+                onPressed: refreshCategories,
+                child: Text('Retry', style: TextStyle(fontSize: 10)),
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
 
     if (filteredWallpapers.isEmpty) {
-      return const Center(
-        child: Text('No categories', style: TextStyle(fontSize: 12)),
+      return SizedBox(
+        height: 100, // Reduced height
+        child: Center(
+          child: Text('No categories', style: TextStyle(fontSize: 12)),
+        ),
       );
     }
 
@@ -548,8 +562,8 @@ class _MyHomePageState extends State<MyHomePage> {
     bool isNetworkImage = imagePath.startsWith('http');
     
     return Container(
-      width: 80,
-      margin: const EdgeInsets.only(right: 12),
+      width: 70, // Reduced width
+      margin: const EdgeInsets.only(right: 10),
       child: GestureDetector(
         onTap: () {
           setState(() {
@@ -562,9 +576,10 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Container image dengan size 50x50
             Container(
-              width: 80,
-              height: 80,
+              width: 50, // Maximum width 50
+              height: 50, // Maximum height 50
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
                 color: Colors.grey[200],
@@ -582,13 +597,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           if (loadingProgress == null) return child;
                           return Center(
                             child: SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 15,
+                              height: 15,
                               child: CircularProgressIndicator(
                                 value: loadingProgress.expectedTotalBytes != null
                                     ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
                                     : null,
-                                strokeWidth: 2,
+                                strokeWidth: 1.5,
                               ),
                             ),
                           );
@@ -599,7 +614,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Icon(
                               Icons.image_not_supported,
                               color: Colors.grey[600],
-                              size: 24,
+                              size: 20,
                             ),
                           );
                         },
@@ -613,20 +628,27 @@ class _MyHomePageState extends State<MyHomePage> {
                             child: Icon(
                               Icons.image_not_supported,
                               color: Colors.grey[600],
-                              size: 24,
+                              size: 20,
                             ),
                           );
                         },
                       ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 12),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            const SizedBox(height: 6),
+            // Text dengan constraints yang lebih ketat
+            Container(
+              constraints: BoxConstraints(maxWidth: 65),
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 11, // Reduced font size
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
