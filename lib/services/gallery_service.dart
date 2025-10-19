@@ -34,35 +34,45 @@ class GalleryService {
         
         List<Map<String, dynamic>> galleriesData = [];
         
-        // Handle different API response structures
-        if (data is List) {
-          galleriesData = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map) {
-          if (data.containsKey('status') && data['status'] == true) {
-            if (data.containsKey('data')) {
-              var dataField = data['data'];
-              if (dataField is List) {
-                galleriesData = List<Map<String, dynamic>>.from(dataField);
-              } else if (dataField is Map && dataField.containsKey('data')) {
-                galleriesData = List<Map<String, dynamic>>.from(dataField['data']);
+          // Handle different API response structures
+        if (data is Map && data.containsKey('status') && data['status'] == true) {
+          if (data.containsKey('data')) {
+            var dataField = data['data'];
+            
+            // PERBAIKAN PENTING: dataField adalah Map yang mengandung 'data' array
+            if (dataField is Map && dataField.containsKey('data')) {
+              var galleriesArray = dataField['data'];
+              if (galleriesArray is List) {
+                galleriesData = List<Map<String, dynamic>>.from(galleriesArray);
               }
             }
-          } else if (data.containsKey('galleries')) {
-            galleriesData = List<Map<String, dynamic>>.from(data['galleries']);
-          } else if (data.containsKey('data')) {
-            var dataField = data['data'];
-            if (dataField is List) {
+            // Fallback: jika struktur berbeda
+            else if (dataField is List) {
               galleriesData = List<Map<String, dynamic>>.from(dataField);
             }
           }
+        } 
+        // Fallback untuk struktur langsung array
+        else if (data is List) {
+          galleriesData = List<Map<String, dynamic>>.from(data);
+        }
+        // Fallback untuk struktur dengan key 'galleries'
+        else if (data is Map && data.containsKey('galleries')) {
+          var galleriesField = data['galleries'];
+          if (galleriesField is List) {
+            galleriesData = List<Map<String, dynamic>>.from(galleriesField);
+          }
         }
 
+        print('Parsed ${galleriesData.length} galleries');
+        
         // Convert to Gallery objects
         return galleriesData.map((item) => Gallery.fromJson(item)).toList();
         
       } else {
         throw Exception('Failed to fetch galleries: ${response.statusCode}');
       }
+
     } catch (e) {
       print('Error fetching galleries: $e');
       throw Exception('Failed to load galleries: $e');

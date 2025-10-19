@@ -59,51 +59,7 @@ class _MyHomePageState extends State<MyHomePage> {
   // Function untuk check data baru
   Future<void> _checkForNewData() async {
     try {
-      String url = '$baseUrl/api/categories';
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'X-API-Key': apiKey,
-          'Content-Type': 'application/json',
-        },
-      ).timeout(Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        List<Map<String, dynamic>> newCategories = [];
-        
-        // Process response structure sama seperti fetchCategories
-        if (data is List) {
-          newCategories = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map) {
-          if (data.containsKey('status') && data['status'] == true) {
-            if (data.containsKey('data')) {
-              var dataField = data['data'];
-              if (dataField is List) {
-                newCategories = List<Map<String, dynamic>>.from(dataField);
-              } else if (dataField is Map && dataField.containsKey('data')) {
-                newCategories = List<Map<String, dynamic>>.from(dataField['data']);
-              }
-            }
-          } else if (data.containsKey('categories')) {
-            newCategories = List<Map<String, dynamic>>.from(data['categories']);
-          } else if (data.containsKey('data')) {
-            var dataField = data['data'];
-            if (dataField is List) {
-              newCategories = List<Map<String, dynamic>>.from(dataField);
-            } else if (dataField is Map && dataField.containsKey('data')) {
-              newCategories = List<Map<String, dynamic>>.from(dataField['data']);
-            }
-          }
-        }
-
-        // Check jika ada data baru
-        if (newCategories.length > allWallpapers.length) {
-          print('New data detected! Updating...');
-          _triggerWallpaperGridUpdate();
-        }
-      }
+        _triggerWallpaperGridUpdate();
     } catch (e) {
       print('Auto-refresh error: $e');
     }
