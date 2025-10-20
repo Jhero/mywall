@@ -3,6 +3,7 @@ import 'dart:async';
 import '../services/gallery_service.dart';
 import '../models/gallery.dart';
 import '../screens/wallpaper_detail_screen.dart';
+import '../services/websocket_service.dart'; // Ganti dengan WebSocketService
 
 class WallpaperGrid extends StatefulWidget {
   final String? searchQuery;
@@ -35,19 +36,20 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   bool _hasMore = true;
   final ScrollController _scrollController = ScrollController();
 
+  // GANTI: SocketService dengan WebSocketService
+  final WebSocketService _webSocketService = WebSocketService();
+
   @override
   void initState() {
     super.initState();
     _loadGalleries();
+    _setupWebSocketListeners(); // Setup WebSocket listeners
     
-    // Setup scroll listener untuk infinite scroll
     _scrollController.addListener(_onScroll);
     
-    // Listen to update stream jika ada
     if (widget.updateStream != null) {
       _updateSubscription = widget.updateStream!.listen((_) {
-        print('WallpaperGrid: Received update signal');
-        _refreshGalleries();
+        _handleExternalUpdate();
       });
     }
   }
@@ -65,9 +67,81 @@ class _WallpaperGridState extends State<WallpaperGrid> {
 
   @override
   void dispose() {
+    // GANTI: remove listeners WebSocketService
+    _webSocketService.removeNewGalleryListener(_handleWebSocketNewGallery);
+    _webSocketService.removeUpdateGalleryListener(_handleWebSocketUpdateGallery);
+    _webSocketService.removeDeleteGalleryListener(_handleWebSocketDeleteGallery);
     _scrollController.dispose();
     _updateSubscription?.cancel();
     super.dispose();
+  }
+
+  void _setupWebSocketListeners() {
+    // GANTI: add listeners WebSocketService
+    _webSocketService.addNewGalleryListener(_handleWebSocketNewGallery);
+    _webSocketService.addUpdateGalleryListener(_handleWebSocketUpdateGallery);
+    _webSocketService.addDeleteGalleryListener(_handleWebSocketDeleteGallery);
+  }
+
+  void _handleWebSocketNewGallery(Map<String, dynamic> galleryData) {
+    print('🆕 WebSocket: New gallery received in WallpaperGrid');
+    
+    // Jika tidak sedang search/filter tertentu, tambahkan gallery baru
+    if (widget.searchQuery == null) {
+      try {
+        final newGallery = Gallery.fromJson(galleryData);
+        
+        if (mounted) {
+          setState(() {
+            // Tambahkan di awal list untuk menunjukkan yang terbaru
+            galleries.insert(0, newGallery);
+          });
+        }
+      } catch (e) {
+        print('Error handling new gallery in WallpaperGrid: $e');
+      }
+    }
+  }
+
+  void _handleWebSocketUpdateGallery(Map<String, dynamic> galleryData) {
+    print('📝 WebSocket: Gallery updated in WallpaperGrid');
+    
+    try {
+      final updatedGallery = Gallery.fromJson(galleryData);
+      final galleryId = updatedGallery.id?.toString();
+      
+      if (galleryId != null && mounted) {
+        setState(() {
+          final index = galleries.indexWhere((g) => g.id?.toString() == galleryId);
+          if (index != -1) {
+            galleries[index] = updatedGallery;
+          }
+        });
+      }
+    } catch (e) {
+      print('Error handling updated gallery in WallpaperGrid: $e');
+    }
+  }
+
+  void _handleWebSocketDeleteGallery(Map<String, dynamic> galleryData) {
+    print('🗑️ WebSocket: Gallery deleted in WallpaperGrid');
+    
+    try {
+      final deletedId = galleryData['id']?.toString();
+      
+      if (deletedId != null && mounted) {
+        setState(() {
+          galleries.removeWhere((gallery) => gallery.id?.toString() == deletedId);
+        });
+      }
+    } catch (e) {
+      print('Error handling deleted gallery in WallpaperGrid: $e');
+    }
+  }
+
+  void _handleExternalUpdate() {
+    print('WallpaperGrid: Received external update signal');
+    _refreshGalleries();
   }
 
   void _resetPagination() {

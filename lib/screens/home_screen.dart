@@ -7,6 +7,8 @@ import '../config/env_config.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async'; // Import untuk Stream
+import '../services/socket_service.dart'; // Import SocketService
+import '../services/websocket_service.dart'; // Ganti dengan WebSocketService
 
 class MyHomePage extends StatefulWidget {
   @override
@@ -33,21 +35,60 @@ class _MyHomePageState extends State<MyHomePage> {
   // StreamController untuk auto-update
   final StreamController<bool> _updateStreamController = StreamController<bool>.broadcast();
   Timer? _autoRefreshTimer;
+  final SocketService _socketService = SocketService();
+  final WebSocketService _webSocketService = WebSocketService();
 
   @override
   void initState() {
     super.initState();
     fetchCategories();
-    _startAutoRefresh();
+    // _startAutoRefresh();
+    _initializeWebSocket();
   }
 
   @override
+  /*
+  void dispose() {
+    _socketService.removeNewGalleryListener(_handleNewGallery);
+    _socketService.disconnect();
+    super.dispose();
+  } 
+  */ 
   void dispose() {
     searchController.dispose();
     _updateStreamController.close();
-    _autoRefreshTimer?.cancel();
+    
+    // GANTI: remove listeners WebSocketService
+    _webSocketService.removeNewGalleryListener(_handleWebSocketNewGallery);
+    _webSocketService.removeUpdateGalleryListener(_handleWebSocketUpdateGallery);
+    _webSocketService.removeDeleteGalleryListener(_handleWebSocketDeleteGallery);
+    _webSocketService.disconnect();
+    
     super.dispose();
   }
+
+  void _initializeWebSocket() {
+    // Initialize WebSocket connection
+    _webSocketService.initializeWebSocket();
+    
+    // Add listeners untuk WebSocket events
+    _webSocketService.addNewGalleryListener(_handleWebSocketNewGallery);
+    _webSocketService.addUpdateGalleryListener(_handleWebSocketUpdateGallery);
+    _webSocketService.addDeleteGalleryListener(_handleWebSocketDeleteGallery);
+  }
+
+  /*
+  void _initializeSocket() {
+    // Initialize socket connection
+    _socketService.initializeSocket();
+    
+    // Add listener for new galleries
+    _socketService.addNewGalleryListener(_handleNewGallery);
+    _socketService.addUpdateGalleryListener(_handleUpdateGallery);
+    _socketService.addDeleteGalleryListener(_handleDeleteGallery);
+  }
+  */
+
 
   // Auto refresh setiap 30 detik
   void _startAutoRefresh() {
@@ -55,6 +96,56 @@ class _MyHomePageState extends State<MyHomePage> {
       _checkForNewData();
     });
   }
+
+  void _handleWebSocketNewGallery(Map<String, dynamic> galleryData) {
+    print('🆕 WebSocket: New gallery received in HomePage: $galleryData');
+    
+    try {        
+        // Trigger WallpaperGrid update
+        _triggerWallpaperGridUpdate();
+        
+        // Show notification
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New wallpaper added:'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+    } catch (e) {
+      print('Error handling new gallery from WebSocket: $e');
+    }
+  }
+
+  void _handleWebSocketUpdateGallery(Map<String, dynamic> galleryData) {
+    print('📝 WebSocket: Gallery updated in HomePage: $galleryData');
+    
+    try {
+        _triggerWallpaperGridUpdate();
+    } catch (e) {
+      print('Error handling updated gallery from WebSocket: $e');
+    }
+  }
+
+  void _handleWebSocketDeleteGallery(Map<String, dynamic> galleryData) {
+    print('🗑️ WebSocket: Gallery deleted in HomePage: $galleryData');
+    
+    try {        
+        _triggerWallpaperGridUpdate();
+        
+        // Show notification
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Wallpaper deleted'),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 3),
+          ),
+        );
+    } catch (e) {
+      print('Error handling deleted gallery from WebSocket: $e');
+    }
+  }
+
 
   // Function untuk check data baru
   Future<void> _checkForNewData() async {
@@ -313,6 +404,19 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
         actions: [
+          // WebSocket connection indicator
+          StreamBuilder<bool>(
+            stream: Stream.periodic(Duration(seconds: 5)).map((_) => _webSocketService.isConnected),
+            builder: (context, snapshot) {
+              final isConnected = snapshot.data ?? false;
+              return Icon(
+                Icons.circle,
+                color: isConnected ? Colors.green : Colors.red,
+                size: 12,
+              );
+            },
+          ),
+          SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh),
             onPressed: isLoading ? null : _refreshAll,

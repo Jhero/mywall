@@ -16,6 +16,9 @@ dependencies:
   path_provider: ^2.0.15
   flutter_dotenv: ^6.0.0
   wallpaper_manager_flutter: 1.0.1
+  socket_io_client: ^2.0.3
+  web_socket_channel: ^3.0.3
+
   # wallpaper_manager_flutter: 1.0.1
   # flutter_wallpaper_manager: ^0.0.4  # Add this line
   # wallpaper_manager: ^1.1.3
