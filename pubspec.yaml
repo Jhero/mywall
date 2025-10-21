@@ -18,6 +18,9 @@ dependencies:
   wallpaper_manager_flutter: 1.0.1
   socket_io_client: ^2.0.3
   web_socket_channel: ^3.0.3
+  permission_handler: ^11.0.1
+  # gallery_saver: ^3.0.3
+  # image_gallery_saver: ^2.0.3
 
   # wallpaper_manager_flutter: 1.0.1
   # flutter_wallpaper_manager: ^0.0.4  # Add this line
@@ -35,10 +38,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-
+  flutter_launcher_icons: ^0.13.1
 flutter:
   uses-material-design: true
   assets:
     - assets/
     - assets/images/
     - .env
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/icon/app_icon.png"

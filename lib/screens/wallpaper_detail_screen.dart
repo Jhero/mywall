@@ -83,6 +83,167 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
     });
   }
 
+  Future<void> _downloadWallpaper() async {
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Text("Downloading wallpaper..."),
+            ],
+          ),
+        ),
+      );
+
+      Uint8List imageBytes;
+      String fileName;
+      String fileType = 'jpg';
+      
+      if (widget.gallery != null) {
+        // Download from API
+        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+        final response = await http.get(
+          Uri.parse(imageUrl),
+          headers: {'X-API-Key': GalleryService.apiKey},
+        );
+        
+        if (response.statusCode != 200) {
+          throw Exception('Failed to download image: ${response.statusCode}');
+        }
+        
+        imageBytes = response.bodyBytes;
+        
+        // Extract file type from URL or content type
+        if (imageUrl.toLowerCase().contains('.png')) {
+          fileType = 'png';
+        } else if (imageUrl.toLowerCase().contains('.jpeg') || imageUrl.toLowerCase().contains('.jpg')) {
+          fileType = 'jpg';
+        } else if (imageUrl.toLowerCase().contains('.webp')) {
+          fileType = 'webp';
+        }
+        
+        fileName = 'wallpaper_${widget.gallery!.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${DateTime.now().millisecondsSinceEpoch}.$fileType';
+      } else {
+        // Handle local asset
+        final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
+        imageBytes = data.buffer.asUint8List();
+        
+        // Extract file type from asset path
+        if (widget.imagePath!.toLowerCase().contains('.png')) {
+          fileType = 'png';
+        } else if (widget.imagePath!.toLowerCase().contains('.jpeg') || widget.imagePath!.toLowerCase().contains('.jpg')) {
+          fileType = 'jpg';
+        }
+        
+        fileName = 'local_wallpaper_${DateTime.now().millisecondsSinceEpoch}.$fileType';
+      }
+
+      // Get downloads directory (works for both Android and iOS)
+      final directory = await getDownloadsDirectory();
+      if (directory == null) {
+        throw Exception('Could not access downloads directory');
+      }
+
+      final filePath = '${directory.path}/$fileName';
+      final File file = File(filePath);
+      await file.writeAsBytes(imageBytes);
+
+      // Close loading dialog
+      Navigator.of(context).pop();
+
+      // Show comprehensive success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Download Successful!', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Saved to: ${directory.path}',
+                style: const TextStyle(fontSize: 12),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                'File: $fileName',
+                style: const TextStyle(fontSize: 12),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'SHARE',
+            textColor: Colors.white,
+            onPressed: () {
+              _shareDownloadedFile(filePath);
+            },
+          ),
+        ),
+      );
+
+    } catch (e) {
+      Navigator.of(context).pop(); // Close loading dialog
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.error, color: Colors.white, size: 20),
+                  SizedBox(width: 8),
+                  Text('Download Failed', style: TextStyle(fontWeight: FontWeight.bold)),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Error: ${e.toString()}',
+                style: const TextStyle(fontSize: 12),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  Future<void> _shareDownloadedFile(String filePath) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: 'Check out this amazing wallpaper I downloaded! 🎨',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cannot share file: ${e.toString()}'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  }
+
   Future<void> _setAsWallpaper() async {
     try {
       showDialog(
@@ -109,7 +270,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         );
         
         if (response.statusCode != 200) {
-          throw Exception('Failed to download image');
+          throw Exception('Failed to download image: ${response.statusCode}');
         }
         
         final tempDir = await getTemporaryDirectory();
@@ -175,14 +336,11 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         ),
       );
 
-      // For wallpaper_manager_flutter version 1.0.1
-      // Create a File object from the path
       File imageFile = File(filePath);
       
-      // Use the correct API according to the documentation
       bool result = await wallpaperManager.setWallpaper(
         imageFile,
-        location, // Use the location parameter (homeScreen, lockScreen, bothScreens)
+        location,
       );
 
       Navigator.of(context).pop();
@@ -190,14 +348,26 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       if (result) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Wallpaper set successfully! 🎉'),
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Wallpaper set successfully! 🎉'),
+              ],
+            ),
             backgroundColor: Colors.green,
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Failed to set wallpaper. Please try again.'),
+            content: Row(
+              children: [
+                Icon(Icons.warning, color: Colors.white),
+                SizedBox(width: 8),
+                Text('Failed to set wallpaper. Please try again.'),
+              ],
+            ),
             backgroundColor: Colors.orange,
           ),
         );
@@ -206,7 +376,15 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to apply wallpaper: ${e.toString()}'),
+          content: Row(
+            children: [
+              const Icon(Icons.error, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Failed to apply wallpaper: ${e.toString()}'),
+              ),
+            ],
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -215,7 +393,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
 
   Future<void> _shareWallpaper() async {
     try {
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -235,7 +412,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       Uint8List imageBytes;
       
       if (widget.gallery != null) {
-        // For API images, download the image first
         final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
         final response = await http.get(
           Uri.parse(imageUrl),
@@ -245,38 +421,40 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         );
         
         if (response.statusCode != 200) {
-          throw Exception('Failed to download image');
+          throw Exception('Failed to download image: ${response.statusCode}');
         }
         
         imageBytes = response.bodyBytes;
       } else {
-        // For local assets, load from assets
         final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
         imageBytes = data.buffer.asUint8List();
       }
 
-      // Save image to temporary file for sharing
       final tempDir = await getTemporaryDirectory();
       final tempFile = File('${tempDir.path}/wallpaper_share_${DateTime.now().millisecondsSinceEpoch}.jpg');
       await tempFile.writeAsBytes(imageBytes);
 
-      // Close loading dialog
       Navigator.of(context).pop();
 
-      // Share the image
       await Share.shareXFiles(
         [XFile(tempFile.path)],
-        text: 'Check out this beautiful wallpaper!',
+        text: 'Check out this beautiful wallpaper from MyWall App! 🖼️',
       );
 
-      // Clean up temporary file
-      await tempFile.delete();
+      // Clean up after a delay
+      Future.delayed(const Duration(seconds: 10), () async {
+        try {
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      });
 
     } catch (e) {
-      // Close loading dialog
       Navigator.of(context).pop();
       
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to share wallpaper: ${e.toString()}'),
@@ -288,7 +466,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
 
   Widget _buildImage() {
     if (widget.gallery != null) {
-      // Handle gallery images (from API)
       final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
       return FutureBuilder<http.Response>(
         future: http.get(
@@ -299,36 +476,117 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         ),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.white));
-          } else if (snapshot.hasError) {
             return const Center(
-              child: Icon(
-                Icons.error,
-                color: Colors.red,
-                size: 100,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 16),
+                  Text(
+                    'Loading wallpaper...',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to load image',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error: ${snapshot.error}',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             );
           } else if (snapshot.hasData && snapshot.data!.statusCode == 200) {
             return Image.memory(
               snapshot.data!.bodyBytes,
               fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.broken_image,
+                        color: Colors.red,
+                        size: 64,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Failed to display image',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  ),
+                );
+              },
             );
           } else {
-            return const Center(
-              child: Icon(
-                Icons.error,
-                color: Colors.red,
-                size: 100,
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error,
+                    color: Colors.red,
+                    size: 64,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'HTTP Error: ${snapshot.data?.statusCode ?? 'Unknown'}',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
               ),
             );
           }
         },
       );
     } else {
-      // Handle local asset images
       return Image.asset(
         widget.imagePath!,
         fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.broken_image,
+                  color: Colors.red,
+                  size: 64,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Failed to load asset',
+                  style: TextStyle(color: Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Path: ${widget.imagePath}',
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        },
       );
     }
   }
@@ -348,35 +606,32 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite ? Colors.red : Colors.white,
             ),
+            tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
           ),
           IconButton(
-            onPressed: () {
-              // Add download functionality here
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Download functionality not implemented'),
-                ),
-              );
-            },
+            onPressed: _downloadWallpaper,
             icon: const Icon(Icons.download, color: Colors.white),
+            tooltip: 'Download wallpaper',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Image viewer
           Expanded(
             child: InteractiveViewer(
+              panEnabled: true,
+              scaleEnabled: true,
+              minScale: 0.5,
+              maxScale: 3.0,
               child: Center(
                 child: _buildImage(),
               ),
             ),
           ),
-          // Bottom info panel
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[900],
+              color: Colors.grey[900]!.withOpacity(0.95),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -390,18 +645,24 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 16,
+                if (description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 14,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
+                ],
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -409,15 +670,18 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                       child: ElevatedButton.icon(
                         onPressed: _setAsWallpaper,
                         icon: const Icon(Icons.wallpaper),
-                        label: const Text('Set as Wallpaper'),
+                        label: const Text('Set Wallpaper'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: _shareWallpaper,
@@ -427,6 +691,9 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
