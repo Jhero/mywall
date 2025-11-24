@@ -335,11 +335,9 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       isSearching = query.isNotEmpty;
       if (query.isEmpty) {
-        print('🔍 currentSearchQuery-1: "$currentSearchQuery"');
         filteredWallpapers = List.from(allWallpapers);
         currentSearchQuery = null;
       } else {
-        print('🔍 currentSearchQuery-2: "$currentSearchQuery"');
         filteredWallpapers = allWallpapers
             .where((item) => item['name']?.toString().toLowerCase().contains(query.toLowerCase()) ?? false)
             .toList();
@@ -356,7 +354,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void clearSearch() {
-    print('🔍 currentSearchQuery-3: "$currentSearchQuery"');
     setState(() {
       searchController.clear();
       isSearching = false;
@@ -463,46 +460,6 @@ class _MyHomePageState extends State<MyHomePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 10),
-          
-          // Search Bar
-          Container(
-            height: 50,
-            margin: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF5F8FF),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(width: 20),
-                Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: filterSearchResults,
-                    decoration: const InputDecoration(
-                      hintText: 'Search Wallpaper',
-                      hintStyle: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 18,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 15),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 20),
-                  child: Icon(
-                    Icons.search,
-                    color: Colors.grey[800],
-                    size: 28,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 15),
           
           // Categories Section dengan height yang fixed TAPI TIDAK BERLEBIHAN
           SizedBox(
@@ -613,8 +570,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildMainContent() {
-    print('🔍 currentSearchQuery-4: "$currentSearchQuery"');
-    print('🔍 categoryId-4: "$categoryId"');
     return Container(
       // Height yang lebih aman dan responsif
       height: MediaQuery.of(context).size.height * 0.6,
@@ -707,8 +662,6 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildCategoryItem(String title, String imagePath, {String? categoryId}) {
     bool isNetworkImage = imagePath.startsWith('http');
-    print('🔍 categoryId: "$categoryId"');
-    print('🔍 currentSearchQuery-8: "$currentSearchQuery"');
     return Container(
       width: 70, // Reduced width
       margin: const EdgeInsets.only(right: 10),
