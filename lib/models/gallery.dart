@@ -22,8 +22,8 @@ class Gallery {
   factory Gallery.fromJson(Map<String, dynamic> json) {
     return Gallery(
       id: json['ID'],
-      title: json['title'],
-      description: json['description'],
+      title: "",
+      description: "",
       imageUrl: json['image_url'],
       categoryId: json['category_id'],
       userId: json['user_id'],

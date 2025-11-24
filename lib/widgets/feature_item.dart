@@ -31,29 +31,29 @@ class FeatureItem extends StatelessWidget {
               size: 24,
             ),
           ),
-          const SizedBox(width: 15),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  description,
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // const SizedBox(width: 15),
+          // Expanded(
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     // children: [
+          //     //   Text(
+          //     //     title,
+          //     //     style: const TextStyle(
+          //     //       fontSize: 18,
+          //     //       fontWeight: FontWeight.bold,
+          //     //     ),
+          //     //   ),
+          //     //   const SizedBox(height: 5),
+          //     //   Text(
+          //     //     description,
+          //     //     style: const TextStyle(
+          //     //       color: Colors.grey,
+          //     //       fontSize: 14,
+          //     //     ),
+          //     //   ),
+          //     // ],
+          //   ),
+          // ),
         ],
       ),
     );
