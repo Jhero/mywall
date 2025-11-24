@@ -54,8 +54,6 @@ class WallpaperDetailScreen extends StatefulWidget {
 class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   late bool isFavorite;
   late String imageIdentifier;
-  late String title;
-  late String description;
   final wallpaperManager = WallpaperManagerFlutter();
 
   @override
@@ -63,12 +61,8 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
     super.initState();
     if (widget.gallery != null) {
       imageIdentifier = widget.gallery!.imageUrl;
-      title = widget.gallery!.title;
-      description = widget.gallery!.description;
     } else {
       imageIdentifier = widget.imagePath!;
-      title = 'Local Wallpaper';
-      description = '';
     }
     isFavorite = FavoritesManager().isFavorite(imageIdentifier);
   }
@@ -641,28 +635,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
                 const SizedBox(height: 16),
                 Row(
                   children: [

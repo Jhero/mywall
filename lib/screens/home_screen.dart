@@ -23,6 +23,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool isSearching = false;
   bool isLoading = true;
   String? currentSearchQuery;
+  String? categoryId;
   String? errorMessage;
   
   // API Configuration
@@ -334,9 +335,11 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       isSearching = query.isNotEmpty;
       if (query.isEmpty) {
+        print('🔍 currentSearchQuery-1: "$currentSearchQuery"');
         filteredWallpapers = List.from(allWallpapers);
         currentSearchQuery = null;
       } else {
+        print('🔍 currentSearchQuery-2: "$currentSearchQuery"');
         filteredWallpapers = allWallpapers
             .where((item) => item['name']?.toString().toLowerCase().contains(query.toLowerCase()) ?? false)
             .toList();
@@ -353,6 +356,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void clearSearch() {
+    print('🔍 currentSearchQuery-3: "$currentSearchQuery"');
     setState(() {
       searchController.clear();
       isSearching = false;
@@ -609,12 +613,15 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildMainContent() {
+    print('🔍 currentSearchQuery-4: "$currentSearchQuery"');
+    print('🔍 categoryId-4: "$categoryId"');
     return Container(
       // Height yang lebih aman dan responsif
       height: MediaQuery.of(context).size.height * 0.6,
       child: WallpaperGrid(
         key: _wallpaperGridKey,
         searchQuery: currentSearchQuery,
+        categoryId: categoryId,
         useLocalAssets: false,
         onRefresh: _refreshAll,
         updateStream: _updateStreamController.stream, // Stream untuk auto-update
@@ -684,8 +691,9 @@ class _MyHomePageState extends State<MyHomePage> {
       itemCount: filteredWallpapers.length,
       itemBuilder: (context, index) {
         final category = filteredWallpapers[index];
+        print('🔍 category-0: "$category"');
         String categoryName = category['name']?.toString() ?? 'Unknown';
-        String categoryId = category['id']?.toString() ?? '';
+        String categoryId = category['ID']?.toString() ?? '';
         String imagePath = getCategoryImage(category);
         
         return _buildCategoryItem(
@@ -699,7 +707,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildCategoryItem(String title, String imagePath, {String? categoryId}) {
     bool isNetworkImage = imagePath.startsWith('http');
-    
+    print('🔍 categoryId: "$categoryId"');
+    print('🔍 currentSearchQuery-8: "$currentSearchQuery"');
     return Container(
       width: 70, // Reduced width
       margin: const EdgeInsets.only(right: 10),
@@ -707,6 +716,7 @@ class _MyHomePageState extends State<MyHomePage> {
         onTap: () {
           setState(() {
             currentSearchQuery = categoryId;
+            categoryId = categoryId;
             searchController.text = title;
             isSearching = false;
             _refreshWallpaperGrid();
@@ -797,8 +807,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
   String _getWallpaperNameById(String id) {
     final wallpaper = allWallpapers.firstWhere(
-      (item) => item['id']?.toString() == id,
-      orElse: () => {'id': '', 'name': 'Unknown'},
+      (item) => item['ID']?.toString() == id,
+      orElse: () => {'ID': '', 'name': 'Unknown'},
     );
     return wallpaper['name']?.toString() ?? 'Unknown';
   }

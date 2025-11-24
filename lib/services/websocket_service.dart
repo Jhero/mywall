@@ -122,8 +122,8 @@ class WebSocketService {
   void _scheduleReconnect() {
     if (_reconnectTimer != null) return;
     
-    print('🔄 Scheduling WebSocket reconnect in 5 seconds...');
-    _reconnectTimer = Timer(Duration(seconds: 5), () {
+    print('🔄 Scheduling WebSocket reconnect in 60 seconds...');
+    _reconnectTimer = Timer(Duration(seconds: 60), () {
       _reconnectTimer = null;
       _connect();
     });

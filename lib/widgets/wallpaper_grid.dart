@@ -3,17 +3,19 @@ import 'dart:async';
 import '../services/gallery_service.dart';
 import '../models/gallery.dart';
 import '../screens/wallpaper_detail_screen.dart';
-import '../services/websocket_service.dart'; // Ganti dengan WebSocketService
+import '../services/websocket_service.dart';
 
 class WallpaperGrid extends StatefulWidget {
   final String? searchQuery;
+  final String? categoryId;
   final bool useLocalAssets;
   final Future<void> Function()? onRefresh;
-  final Stream<bool>? updateStream;
+  final Stream<dynamic>? updateStream; // Changed from Stream<bool> to Stream<dynamic>
 
   const WallpaperGrid({
     Key? key,
     this.searchQuery,
+    this.categoryId,
     this.useLocalAssets = false,
     this.onRefresh,
     this.updateStream,
@@ -28,7 +30,6 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   bool isLoading = true;
   bool isLoadingMore = false;
   String? errorMessage;
-  StreamSubscription? _updateSubscription;
   
   // Pagination variables
   int _currentPage = 1;
@@ -36,20 +37,20 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   bool _hasMore = true;
   final ScrollController _scrollController = ScrollController();
 
-  // GANTI: SocketService dengan WebSocketService
   final WebSocketService _webSocketService = WebSocketService();
+  StreamSubscription? _updateSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadGalleries();
-    _setupWebSocketListeners(); // Setup WebSocket listeners
+    _setupWebSocketListeners();
     
     _scrollController.addListener(_onScroll);
     
     if (widget.updateStream != null) {
-      _updateSubscription = widget.updateStream!.listen((_) {
-        _handleExternalUpdate();
+      _updateSubscription = widget.updateStream!.listen((data) {
+        _handleExternalUpdate(data);
       });
     }
   }
@@ -57,9 +58,12 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   @override
   void didUpdateWidget(WallpaperGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    
-    // Jika searchQuery berubah, reset dan load ulang data
-    if (widget.searchQuery != oldWidget.searchQuery) {
+    print('🔍 widget-3: "${widget}"');
+    print('🔍 oldWidget-3: "${oldWidget}"');
+    // Jika searchQuery atau categoryId berubah, reset dan load ulang data
+    if (widget.searchQuery != oldWidget.searchQuery || 
+        widget.categoryId != oldWidget.categoryId) {
+       print('🎯 Category changed to: ${widget.categoryId}');   
       _resetPagination();
       _loadGalleries();
     }
@@ -67,7 +71,6 @@ class _WallpaperGridState extends State<WallpaperGrid> {
 
   @override
   void dispose() {
-    // GANTI: remove listeners WebSocketService
     _webSocketService.removeNewGalleryListener(_handleWebSocketNewGallery);
     _webSocketService.removeUpdateGalleryListener(_handleWebSocketUpdateGallery);
     _webSocketService.removeDeleteGalleryListener(_handleWebSocketDeleteGallery);
@@ -77,7 +80,6 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   }
 
   void _setupWebSocketListeners() {
-    // GANTI: add listeners WebSocketService
     _webSocketService.addNewGalleryListener(_handleWebSocketNewGallery);
     _webSocketService.addUpdateGalleryListener(_handleWebSocketUpdateGallery);
     _webSocketService.addDeleteGalleryListener(_handleWebSocketDeleteGallery);
@@ -87,7 +89,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     print('🆕 WebSocket: New gallery received in WallpaperGrid');
     
     // Jika tidak sedang search/filter tertentu, tambahkan gallery baru
-    if (widget.searchQuery == null) {
+    if (widget.searchQuery == null && widget.categoryId == null) {
       try {
         final newGallery = Gallery.fromJson(galleryData);
         
@@ -139,9 +141,46 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     }
   }
 
-  void _handleExternalUpdate() {
-    print('WallpaperGrid: Received external update signal');
-    _refreshGalleries();
+  void _handleExternalUpdate(dynamic data) {
+    print('WallpaperGrid: Received external update signal: $data');
+    
+    if (data is Map) {
+      if (data['type'] == 'galleries_data') {
+        // Handle galleries data from external source
+        _handleExternalGalleriesData(data['data'], data['category_id']);
+      } else if (data['type'] == 'refresh') {
+        // Refresh data
+        _refreshGalleries();
+      }
+    } else if (data == true) {
+      // Backward compatibility
+      _refreshGalleries();
+    }
+  }
+
+  void _handleExternalGalleriesData(List<Map<String, dynamic>> galleriesData, String? categoryId) {
+    try {
+      final loadedGalleries = galleriesData.map((data) => Gallery.fromJson(data)).toList();
+      
+      if (mounted) {
+        setState(() {
+          galleries = loadedGalleries;
+          isLoading = false;
+          _hasMore = false; // External data biasanya tidak support pagination
+          errorMessage = null;
+        });
+      }
+      
+      print('Successfully loaded ${loadedGalleries.length} galleries from external source');
+    } catch (e) {
+      print('Error handling external galleries data: $e');
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+          errorMessage = 'Failed to load galleries data';
+        });
+      }
+    }
   }
 
   void _resetPagination() {
@@ -171,7 +210,6 @@ class _WallpaperGridState extends State<WallpaperGrid> {
 
     try {
       List<Gallery> loadedGalleries;
-      
       if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
         // Load galleries by category
         loadedGalleries = await GalleryService.fetchGalleriesByCategory(
@@ -179,7 +217,19 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           page: _currentPage,
           limit: _limit,
         );
+      } else if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+        print('Loading galleries by search: ${widget.searchQuery}');
+        // Load galleries by search (jika ada)
+        loadedGalleries = await GalleryService.fetchGalleries(
+          page: _currentPage,
+          limit: _limit,
+        );
+        // Filter by search query locally
+        loadedGalleries = loadedGalleries.where((gallery) => 
+          gallery.title?.toLowerCase().contains(widget.searchQuery!.toLowerCase()) ?? false
+        ).toList();
       } else {
+        print('Loading all galleries');
         // Load all galleries
         loadedGalleries = await GalleryService.fetchGalleries(
           page: _currentPage,
@@ -219,10 +269,10 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     try {
       final nextPage = _currentPage + 1;
       List<Gallery> newGalleries;
-      
-      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+      print('Loading more galleries for category: ${widget}');
+      if (widget.categoryId != null && widget.categoryId!.isNotEmpty) {
         newGalleries = await GalleryService.fetchGalleriesByCategory(
-          widget.searchQuery!,
+          widget.categoryId!,
           page: nextPage,
           limit: _limit,
         );
@@ -231,6 +281,13 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           page: nextPage,
           limit: _limit,
         );
+        
+        // Filter by search query jika ada
+        if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+          newGalleries = newGalleries.where((gallery) => 
+            gallery.title?.toLowerCase().contains(widget.searchQuery!.toLowerCase()) ?? false
+          ).toList();
+        }
       }
 
       if (mounted) {
@@ -296,7 +353,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
             // Image widget dengan headers untuk network image
             isNetworkImage
                 ? Image.network(
-                    GalleryService.getImageUrl(gallery.imageUrl!),
+                    imageUrl,
                     fit: BoxFit.cover,
                     headers: _getImageHeaders(),
                     loadingBuilder: (context, child, loadingProgress) {
@@ -385,6 +442,59 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     );
   }
 
+  Widget _buildEmptyState() {
+    IconData icon;
+    String message;
+    
+    if (widget.categoryId != null && widget.categoryId!.isNotEmpty) {
+      icon = Icons.category;
+      message = 'No galleries in this category';
+    } else if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+      icon = Icons.search;
+      message = 'No galleries found';
+    } else {
+      icon = Icons.image_not_supported;
+      message = 'No galleries available';
+    }
+    
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 48, color: Colors.grey),
+          SizedBox(height: 8),
+          Text(
+            message,
+            style: TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderInfo() {
+    String infoText = '${galleries.length} galleries';
+    Widget? filterChip;
+    
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            infoText,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          if (filterChip != null) filterChip,
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading && galleries.isEmpty) {
@@ -419,48 +529,15 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     }
 
     if (galleries.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.image_not_supported, size: 48, color: Colors.grey),
-            SizedBox(height: 8),
-            Text(
-              widget.searchQuery != null ? 'No galleries found' : 'No galleries available',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
+      return _buildEmptyState();
     }
 
     return RefreshIndicator(
       onRefresh: _refreshGalleries,
       child: Column(
         children: [
-          // Info jumlah gallery
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${galleries.length} galleries',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                if (widget.searchQuery != null)
-                  Chip(
-                    label: Text('Category'),
-                    backgroundColor: Colors.blue[100],
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-          ),
+          // Header info
+          _buildHeaderInfo(),
           
           // Grid view
           Expanded(

@@ -164,7 +164,7 @@ class GalleryService {
     int limit = 20,
   }) async {
     try {
-      final url = '$baseUrl/api/galleries/category/$categoryId?page=$page&limit=$limit';
+      final url = '$baseUrl/api/galleries?category_id=$categoryId?page=$page&limit=$limit';
       print('Fetching galleries by category from: $url');
       
       final response = await http.get(
