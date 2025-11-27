@@ -19,6 +19,11 @@ dependencies:
   socket_io_client: ^2.0.3
   web_socket_channel: ^3.0.3
   permission_handler: ^11.0.1
+  # google_mobile_ads: ^2.1.0
+  provider: ^6.0.5  
+  google_mobile_ads: ^1.2.0
+
+  # google_mobile_ads: ^2.4.0
   # gallery_saver: ^3.0.3
   # image_gallery_saver: ^2.0.3
 

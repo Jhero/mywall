@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../services/favorites_manager.dart';
-import '../services/gallery_service.dart';
-import '../models/gallery.dart';
+import '../../services/favorites_manager.dart';
+import '../../services/gallery_service.dart';
+import '../../models/gallery.dart';
 import 'wallpaper_detail_screen.dart';
 import 'package:http/http.dart' as http;
 

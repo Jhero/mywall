@@ -1,8 +1,8 @@
 // lib/screens/wallpaper_detail_screen.dart
 import 'package:flutter/material.dart';
-import '../models/gallery.dart';
-import '../services/gallery_service.dart';
-import '../services/favorites_manager.dart';
+import '../../models/gallery.dart';
+import '../../services/gallery_service.dart';
+import '../../services/favorites_manager.dart';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io';

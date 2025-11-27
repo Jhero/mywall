@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import '../services/gallery_service.dart';
 import '../models/gallery.dart';
-import '../screens/wallpaper_detail_screen.dart';
+import '../presentation/screens/wallpaper_detail_screen.dart';
 import '../services/websocket_service.dart';
 
 class WallpaperGrid extends StatefulWidget {

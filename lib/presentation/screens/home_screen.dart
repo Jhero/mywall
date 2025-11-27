@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
-import '../services/favorites_manager.dart';
+import '../../services/favorites_manager.dart';
+import '../../services/gallery_service.dart';
+import '../../models/gallery.dart';
 import 'wallpaper_detail_screen.dart';
-import '../widgets/wallpaper_grid.dart';
+import '../../widgets/wallpaper_grid.dart';
 import 'package:http/http.dart' as http;
-import '../config/env_config.dart';
+import '../../config/env_config.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async'; // Import untuk Stream
-import '../services/socket_service.dart'; // Import SocketService
-import '../services/websocket_service.dart'; // Ganti dengan WebSocketService
+import '../../services/socket_service.dart'; // Import SocketService
+import '../../services/websocket_service.dart'; // Ganti dengan WebSocketService
 
 class MyHomePage extends StatefulWidget {
   @override
