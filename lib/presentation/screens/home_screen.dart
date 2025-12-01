@@ -648,7 +648,6 @@ class _MyHomePageState extends State<MyHomePage> {
       itemCount: filteredWallpapers.length,
       itemBuilder: (context, index) {
         final category = filteredWallpapers[index];
-        print('🔍 category-0: "$category"');
         String categoryName = category['name']?.toString() ?? 'Unknown';
         String categoryId = category['ID']?.toString() ?? '';
         String imagePath = getCategoryImage(category);

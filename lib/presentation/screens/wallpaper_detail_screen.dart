@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
+// import 'package:share_plus/share_plus'; // HAPUS INI
 import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
 
 class WallpaperLocation {
@@ -54,6 +54,7 @@ class WallpaperDetailScreen extends StatefulWidget {
 class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   late bool isFavorite;
   late String imageIdentifier;
+  final FavoritesManager _favoritesManager = FavoritesManager();
   final wallpaperManager = WallpaperManagerFlutter();
 
   @override
@@ -64,17 +65,29 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
     } else {
       imageIdentifier = widget.imagePath!;
     }
-    isFavorite = FavoritesManager().isFavorite(imageIdentifier);
+    _checkFavoriteStatus();
   }
 
-  void _toggleFavorite() {
+  void _checkFavoriteStatus() {
+    isFavorite = _favoritesManager.isFavorite(imageIdentifier);
+  }
+
+  Future<void> _toggleFavorite() async {
     setState(() {
       isFavorite = !isFavorite;
-      FavoritesManager().toggleFavorite(imageIdentifier);
-      if (widget.onFavoriteChanged != null) {
-        widget.onFavoriteChanged!();
-      }
     });
+
+    // Update favorite status in manager
+    if (isFavorite) {
+      await _favoritesManager.addFavorite(imageIdentifier);
+    } else {
+      await _favoritesManager.removeFavorite(imageIdentifier);
+    }
+
+    // Notify parent widget if callback is provided
+    if (widget.onFavoriteChanged != null) {
+      widget.onFavoriteChanged!();
+    }
   }
 
   Future<void> _downloadWallpaper() async {
@@ -182,10 +195,10 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
-            label: 'SHARE',
+            label: 'OK',
             textColor: Colors.white,
             onPressed: () {
-              _shareDownloadedFile(filePath);
+              // Hanya dismiss snackbar, share dihapus
             },
           ),
         ),
@@ -222,6 +235,8 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
     }
   }
 
+  // HAPUS METHOD _shareDownloadedFile() atau komen saja:
+  /*
   Future<void> _shareDownloadedFile(String filePath) async {
     try {
       await Share.shareXFiles(
@@ -237,6 +252,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       );
     }
   }
+  */
 
   Future<void> _setAsWallpaper() async {
     try {
@@ -271,7 +287,11 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         filePath = '${tempDir.path}/wallpaper_${DateTime.now().millisecondsSinceEpoch}.jpg';
         await File(filePath).writeAsBytes(response.bodyBytes);
       } else {
-        filePath = widget.imagePath!;
+        // Untuk local asset, kita perlu menyalin ke file temporary
+        final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
+        final tempDir = await getTemporaryDirectory();
+        filePath = '${tempDir.path}/wallpaper_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        await File(filePath).writeAsBytes(data.buffer.asUint8List());
       }
 
       Navigator.of(context).pop(); 
@@ -385,77 +405,23 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
     }
   }
 
+  // MODIFIKASI method _shareWallpaper() atau HAPUS/komentari:
   Future<void> _shareWallpaper() async {
-    try {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const AlertDialog(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Text("Preparing to share..."),
-              ],
-            ),
-          );
-        },
-      );
-
-      Uint8List imageBytes;
-      
-      if (widget.gallery != null) {
-        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
-        final response = await http.get(
-          Uri.parse(imageUrl),
-          headers: {
-            'X-API-Key': GalleryService.apiKey,
-          },
-        );
-        
-        if (response.statusCode != 200) {
-          throw Exception('Failed to download image: ${response.statusCode}');
-        }
-        
-        imageBytes = response.bodyBytes;
-      } else {
-        final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
-        imageBytes = data.buffer.asUint8List();
-      }
-
-      final tempDir = await getTemporaryDirectory();
-      final tempFile = File('${tempDir.path}/wallpaper_share_${DateTime.now().millisecondsSinceEpoch}.jpg');
-      await tempFile.writeAsBytes(imageBytes);
-
-      Navigator.of(context).pop();
-
-      await Share.shareXFiles(
-        [XFile(tempFile.path)],
-        text: 'Check out this beautiful wallpaper from MyWall App! 🖼️',
-      );
-
-      // Clean up after a delay
-      Future.delayed(const Duration(seconds: 10), () async {
-        try {
-          if (await tempFile.exists()) {
-            await tempFile.delete();
-          }
-        } catch (e) {
-          // Ignore cleanup errors
-        }
-      });
-
-    } catch (e) {
-      Navigator.of(context).pop();
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to share wallpaper: ${e.toString()}'),
-          backgroundColor: Colors.red,
+    // Tampilkan pesan bahwa fitur share sedang tidak tersedia
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.info, color: Colors.white),
+            SizedBox(width: 8),
+            Text('Share feature is temporarily unavailable'),
+          ],
         ),
-      );
-    }
+        backgroundColor: Colors.blue,
+      ),
+    );
+    
+    // ATAU hapus tombol share dari UI dengan mengubah build method
   }
 
   Widget _buildImage() {
@@ -636,40 +602,19 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _setAsWallpaper,
-                        icon: const Icon(Icons.wallpaper),
-                        label: const Text('Set Wallpaper'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
+                // Hanya tampilkan tombol Set Wallpaper, hapus tombol Share
+                ElevatedButton.icon(
+                  onPressed: _setAsWallpaper,
+                  icon: const Icon(Icons.wallpaper),
+                  label: const Text('Set as Wallpaper'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _shareWallpaper,
-                        icon: const Icon(Icons.share),
-                        label: const Text('Share'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),

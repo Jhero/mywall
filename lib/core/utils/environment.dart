@@ -1,14 +1,17 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class Environment {
-  static String get baseUrl => dotenv.env['BASE_URL'] ?? 'http://192.168.1.7:8080';
-  static String get apiKey => dotenv.env['API_KEY'] ?? 'ebe2540a9634855cb916d8b2d7bde2ad2154dd46f4dc3a0727a93a17779a98d8';
-  
-  // Method untuk mendapatkan WebSocket URL
+  // HTTP API
+  static String get baseUrl =>
+      dotenv.env['BASE_URL'] ?? 'http://192.168.1.7:8080';
+
+  static String get apiKey =>
+      dotenv.env['API_KEY'] ??
+      'ebe2540a9634855cb916d8b2d7bde2ad2154dd46f4dc3a0727a93a17779a98d8';
+
+  // Websocket URL (http → ws / https → wss)
   static String get webSocketUrl {
-    String url = dotenv.env['BASE_URL'] ?? 'http://192.168.1.7:8080';
-    
-    // Convert http -> ws, https -> wss
+    final url = dotenv.env['BASE_URL'] ?? 'http://192.168.1.7:8080';
     if (url.startsWith('https://')) {
       return url.replaceFirst('https://', 'wss://') + '/ws';
     } else {
@@ -16,16 +19,29 @@ class Environment {
     }
   }
 
-//   static const String admobAppId = String.fromEnvironment('ADMOB_APP_ID');
-//   static const String admobBannerId = String.fromEnvironment('ADMOB_BANNER_ID');
-//   static const String admobInterstitialId = String.fromEnvironment('ADMOB_INTERSTITIAL_ID');
-//   static const String admobRewardedId = String.fromEnvironment('ADMOB_REWARDED_ID');
-//   static const String admobNativeId = String.fromEnvironment('ADMOB_NATIVE_ID');
+  // AdMob IDs
+  static String get admobAppId =>
+      dotenv.env['ADMOB_APP_ID'] ??
+      'ca-app-pub-3940256099942544~3347511713';
 
+  static String get admobBannerId =>
+      dotenv.env['ADMOB_BANNER_ID'] ??
+      'ca-app-pub-3940256099942544/6300978111';
+
+  static String get admobInterstitialId =>
+      dotenv.env['ADMOB_INTERSTITIAL_ID'] ??
+      'ca-app-pub-3940256099942544/1033173712';
+
+  static String get admobRewardedId =>
+      dotenv.env['ADMOB_REWARDED_ID'] ??
+      'ca-app-pub-3940256099942544/5224354917';
+
+  static String get admobNativeId =>
+      dotenv.env['ADMOB_NATIVE_ID'] ??
+      'ca-app-pub-3940256099942544/2247696110';
+
+  // Init dotenv
   static Future<void> load() async {
     await dotenv.load(fileName: ".env");
-
-    // Untuk development, bisa load dari assets atau .env file
-    // Untuk production, gunakan --dart-define dari command line
   }
 }

@@ -13,15 +13,31 @@ class FavoritesScreen extends StatefulWidget {
 }
 
 class _FavoritesScreenState extends State<FavoritesScreen> {
-  late List<String> favorites;
-  late FavoritesManager _favoritesManager;
-  
+  final FavoritesManager _favoritesManager = FavoritesManager();
+  List<String> _favorites = [];
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    _favoritesManager = FavoritesManager();
-    favorites = _favoritesManager.getAllFavorites();
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    // Tunggu sedikit untuk memastikan SharedPreferences terinisialisasi
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    // Dapatkan favorites terbaru
+    _favorites = _favoritesManager.getAllFavorites();
+    
+    // Tambahkan listener
     _favoritesManager.addListener(_onFavoritesChanged);
+    
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -31,9 +47,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   void _onFavoritesChanged() {
-    setState(() {
-      favorites = _favoritesManager.getAllFavorites();
-    });
+    if (mounted) {
+      setState(() {
+        _favorites = _favoritesManager.getAllFavorites();
+      });
+    }
   }
 
   // Check if the image is a local asset (starts with 'assets/')
@@ -72,9 +90,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             MaterialPageRoute(
               builder: (context) => WallpaperDetailScreen.fromAsset(
                 imagePath: wallpaper,
-                onFavoriteChanged: () {
-                  // The listener will automatically refresh the UI
-                },
+                onFavoriteChanged: _onFavoritesChanged,
               ),
             ),
           );
@@ -96,9 +112,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             MaterialPageRoute(
               builder: (context) => WallpaperDetailScreen.fromGallery(
                 gallery: gallery,
-                onFavoriteChanged: () {
-                  // The listener will automatically refresh the UI
-                },
+                onFavoriteChanged: _onFavoritesChanged,
               ),
             ),
           );
@@ -193,50 +207,82 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-      ),
-      body: favorites.isEmpty
-          ? const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.favorite_border,
-                    size: 64,
-                    color: Colors.grey,
+        actions: [
+          if (_favorites.isNotEmpty && !_isLoading)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.black),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Clear All Favorites'),
+                    content: const Text('Are you sure you want to remove all favorites?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await _favoritesManager.clearAllFavorites();
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 20),
-                  Text(
-                    'No favorites yet',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Like wallpapers to add them here',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.75,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-              ),
-              itemCount: favorites.length,
-              itemBuilder: (context, index) {
-                final wallpaper = favorites[index];
-                return _buildFavoriteItem(wallpaper);
+                );
               },
             ),
+        ],
+      ),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(),
+            )
+          : _favorites.isEmpty
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.favorite_border,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      SizedBox(height: 20),
+                      Text(
+                        'No favorites yet',
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      SizedBox(height: 10),
+                      Text(
+                        'Like wallpapers to add them here',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.75,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  itemCount: _favorites.length,
+                  itemBuilder: (context, index) {
+                    final wallpaper = _favorites[index];
+                    return _buildFavoriteItem(wallpaper);
+                  },
+                ),
     );
   }
 }

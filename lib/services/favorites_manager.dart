@@ -1,44 +1,87 @@
-// lib/services/favorites_manager.dart
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class FavoritesManager extends ChangeNotifier {
+class FavoritesManager {
+  static const String _favoritesKey = 'favorite_wallpapers';
+  late SharedPreferences _prefs;
+  List<String> _favorites = [];
+  List<VoidCallback> _listeners = [];
+
+  // Singleton pattern
   static final FavoritesManager _instance = FavoritesManager._internal();
   factory FavoritesManager() => _instance;
-  FavoritesManager._internal();
-
-  final Set<String> _favorites = <String>{};
-
-  Set<String> get favorites => Set.unmodifiable(_favorites);
-
-  bool isFavorite(String imageUrl) {
-    return _favorites.contains(imageUrl);
+  FavoritesManager._internal() {
+    _initPrefs();
   }
 
-  void addFavorite(String imageUrl) {
-    _favorites.add(imageUrl);
-    notifyListeners();
+  Future<void> _initPrefs() async {
+    _prefs = await SharedPreferences.getInstance();
+    _loadFavorites();
   }
 
-  void removeFavorite(String imageUrl) {
-    _favorites.remove(imageUrl);
-    notifyListeners();
-  }
-
-  void toggleFavorite(String imageUrl) {
-    if (isFavorite(imageUrl)) {
-      removeFavorite(imageUrl);
-    } else {
-      addFavorite(imageUrl);
+  Future<void> _loadFavorites() async {
+    final favoritesJson = _prefs.getStringList(_favoritesKey);
+    if (favoritesJson != null) {
+      _favorites = favoritesJson;
+      _notifyListeners();
     }
   }
 
-  void clearFavorites() {
-    _favorites.clear();
-    notifyListeners();
+  Future<void> _saveFavorites() async {
+    await _prefs.setStringList(_favoritesKey, _favorites);
   }
 
-  // Get all favorites as a list
+  // Listener management
+  void addListener(VoidCallback listener) {
+    _listeners.add(listener);
+  }
+
+  void removeListener(VoidCallback listener) {
+    _listeners.remove(listener);
+  }
+
+  void _notifyListeners() {
+    for (final listener in _listeners) {
+      listener();
+    }
+  }
+
+  // Favorite operations
+  Future<void> addFavorite(String wallpaper) async {
+    if (!_favorites.contains(wallpaper)) {
+      _favorites.add(wallpaper);
+      await _saveFavorites();
+      _notifyListeners();
+    }
+  }
+
+  Future<void> removeFavorite(String wallpaper) async {
+    if (_favorites.remove(wallpaper)) {
+      await _saveFavorites();
+      _notifyListeners();
+    }
+  }
+
+  // Toggle method (untuk WallpaperDetailScreen)
+  Future<void> toggleFavorite(String wallpaper) async {
+    if (isFavorite(wallpaper)) {
+      await removeFavorite(wallpaper);
+    } else {
+      await addFavorite(wallpaper);
+    }
+  }
+
+  bool isFavorite(String wallpaper) {
+    return _favorites.contains(wallpaper);
+  }
+
   List<String> getAllFavorites() {
-    return _favorites.toList();
+    return List.from(_favorites);
+  }
+
+  Future<void> clearAllFavorites() async {
+    _favorites.clear();
+    await _saveFavorites();
+    _notifyListeners();
   }
 }

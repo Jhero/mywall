@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import '../../data/services/admob_service.dart';
 import '../../core/utils/debug_logger.dart';
+import 'package:mywall/core/constants/admob_constants.dart';
 
 class AdProvider with ChangeNotifier {
   InterstitialAd? _interstitialAd;

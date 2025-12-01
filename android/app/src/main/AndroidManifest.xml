@@ -10,6 +10,10 @@
         android:label="My Wallpaper"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-9170949292796950~2416353309"/>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
