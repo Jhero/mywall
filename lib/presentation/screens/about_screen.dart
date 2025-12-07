@@ -162,7 +162,7 @@ class AboutScreen extends StatelessWidget {
                 FeatureItem(
                   icon: Icons.category_rounded,
                   title: 'Smart Categories',
-                  description: 'Browse by categories like Nature, Abstract, Minimal, and more',
+                  description: 'Browse by categories like Jimin, Jhope, Vee, and more',
                   iconColor: Colors.green,
                 ),
                 

@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
-// import 'package:share_plus/share_plus'; // HAPUS INI
+import 'package:share_plus/share_plus.dart'; // UNCOMMENT INI
 import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
 
 class WallpaperLocation {
@@ -56,6 +56,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   late String imageIdentifier;
   final FavoritesManager _favoritesManager = FavoritesManager();
   final wallpaperManager = WallpaperManagerFlutter();
+  bool _isSharing = false;
 
   @override
   void initState() {
@@ -195,10 +196,10 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
           backgroundColor: Colors.green,
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
-            label: 'OK',
+            label: 'SHARE',
             textColor: Colors.white,
             onPressed: () {
-              // Hanya dismiss snackbar, share dihapus
+              _shareDownloadedFile(filePath);
             },
           ),
         ),
@@ -235,13 +236,11 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
     }
   }
 
-  // HAPUS METHOD _shareDownloadedFile() atau komen saja:
-  /*
   Future<void> _shareDownloadedFile(String filePath) async {
     try {
       await Share.shareXFiles(
         [XFile(filePath)],
-        text: 'Check out this amazing wallpaper I downloaded! 🎨',
+        text: 'Check out this amazing wallpaper from WallpaperMy app! 📱🎨',
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -252,7 +251,106 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       );
     }
   }
-  */
+
+  Future<void> _shareWallpaper() async {
+    if (_isSharing) return;
+    
+    setState(() {
+      _isSharing = true;
+    });
+
+    try {
+      // Show loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 20),
+              Text(_isSharing ? "Sharing..." : "Preparing..."),
+            ],
+          ),
+        ),
+      );
+
+      Uint8List imageBytes;
+      String fileName;
+      
+      if (widget.gallery != null) {
+        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+        final response = await http.get(
+          Uri.parse(imageUrl),
+          headers: {'X-API-Key': GalleryService.apiKey},
+        );
+        
+        if (response.statusCode != 200) {
+          throw Exception('Failed to load image: ${response.statusCode}');
+        }
+        
+        imageBytes = response.bodyBytes;
+        fileName = 'wallpaper_${widget.gallery!.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.jpg';
+      } else {
+        final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
+        imageBytes = data.buffer.asUint8List();
+        fileName = 'wallpaper_${widget.imagePath!.split('/').last}';
+      }
+
+      // Save to temporary file
+      final tempDir = await getTemporaryDirectory();
+      final tempFile = File('${tempDir.path}/$fileName');
+      await tempFile.writeAsBytes(imageBytes);
+
+      // Close loading dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Share the file
+      await Share.shareXFiles(
+        [XFile(tempFile.path)],
+        text: 'Check out this beautiful wallpaper from WallpaperMy app! 🖼️✨\n\nDownload WallpaperMy for more amazing wallpapers!',
+      );
+
+      // Clean up temporary file after a delay
+      Future.delayed(const Duration(seconds: 10), () async {
+        try {
+          if (await tempFile.exists()) {
+            await tempFile.delete();
+          }
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+      });
+
+    } catch (e) {
+      if (mounted) {
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error, color: Colors.white),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Failed to share: ${e.toString()}'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSharing = false;
+        });
+      }
+    }
+  }
 
   Future<void> _setAsWallpaper() async {
     try {
@@ -403,25 +501,6 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         ),
       );
     }
-  }
-
-  // MODIFIKASI method _shareWallpaper() atau HAPUS/komentari:
-  Future<void> _shareWallpaper() async {
-    // Tampilkan pesan bahwa fitur share sedang tidak tersedia
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.info, color: Colors.white),
-            SizedBox(width: 8),
-            Text('Share feature is temporarily unavailable'),
-          ],
-        ),
-        backgroundColor: Colors.blue,
-      ),
-    );
-    
-    // ATAU hapus tombol share dari UI dengan mengubah build method
   }
 
   Widget _buildImage() {
@@ -602,19 +681,49 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 16),
-                // Hanya tampilkan tombol Set Wallpaper, hapus tombol Share
-                ElevatedButton.icon(
-                  onPressed: _setAsWallpaper,
-                  icon: const Icon(Icons.wallpaper),
-                  label: const Text('Set as Wallpaper'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _setAsWallpaper,
+                        icon: const Icon(Icons.wallpaper),
+                        label: const Text('Set Wallpaper'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isSharing ? null : _shareWallpaper,
+                        icon: _isSharing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.share),
+                        label: Text(_isSharing ? 'Sharing...' : 'Share'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
