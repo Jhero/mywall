@@ -218,7 +218,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           limit: _limit,
         );
       } else if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-        print('Loading galleries by search: ${widget.searchQuery}');
+        // print('Loading galleries by search: ${widget.searchQuery}');
         // Load galleries by search (jika ada)
         loadedGalleries = await GalleryService.fetchGalleries(
           page: _currentPage,
@@ -269,14 +269,16 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     try {
       final nextPage = _currentPage + 1;
       List<Gallery> newGalleries;
-      print('Loading more galleries for category: ${widget}');
-      if (widget.categoryId != null && widget.categoryId!.isNotEmpty) {
+      // print('Loading more galleries for category1: ${widget.searchQuery}');
+      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+        // print('Loading more galleries for category: ${widget.searchQuery}');
         newGalleries = await GalleryService.fetchGalleriesByCategory(
-          widget.categoryId!,
+          widget.searchQuery!,
           page: nextPage,
           limit: _limit,
         );
       } else {
+      // print('Loading more galleries for category2: ${widget.categoryId}');
         newGalleries = await GalleryService.fetchGalleries(
           page: nextPage,
           limit: _limit,

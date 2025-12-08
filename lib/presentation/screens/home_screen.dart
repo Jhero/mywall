@@ -408,17 +408,17 @@ class _MyHomePageState extends State<MyHomePage> {
         ),
         actions: [
           // WebSocket connection indicator
-          StreamBuilder<bool>(
-            stream: Stream.periodic(Duration(seconds: 5)).map((_) => _webSocketService.isConnected),
-            builder: (context, snapshot) {
-              final isConnected = snapshot.data ?? false;
-              return Icon(
-                Icons.circle,
-                color: isConnected ? Colors.green : Colors.red,
-                size: 12,
-              );
-            },
-          ),
+          // StreamBuilder<bool>(
+          //   stream: Stream.periodic(Duration(seconds: 5)).map((_) => _webSocketService.isConnected),
+          //   builder: (context, snapshot) {
+          //     final isConnected = snapshot.data ?? false;
+          //     return Icon(
+          //       Icons.circle,
+          //       color: isConnected ? Colors.green : Colors.red,
+          //       size: 12,
+          //     );
+          //   },
+          // ),
           SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh),
