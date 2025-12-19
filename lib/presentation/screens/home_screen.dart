@@ -404,6 +404,14 @@ class _MyHomePageState extends State<MyHomePage> {
                 color: Colors.blue,
               ),
             ),
+            Text(
+              'BTS',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.purple, // warna khas BTS
+              ),
+            ),            
           ],
         ),
         actions: [

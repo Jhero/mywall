@@ -60,7 +60,7 @@ class AboutScreen extends StatelessWidget {
             
             // App Title
             const Text(
-              'WallpaperMy',
+              'My BTS Wallpaper',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
@@ -102,7 +102,7 @@ class AboutScreen extends StatelessWidget {
               child: const Column(
                 children: [
                   Text(
-                    'About WallpaperMy',
+                    'About My BTS Wallpaper',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -111,7 +111,7 @@ class AboutScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 12),
                   Text(
-                    'WallpaperMy is your ultimate destination for beautiful, high-quality wallpapers. '
+                    'My BTS Wallpaper is your ultimate destination for beautiful, high-quality wallpapers. '
                     'With our curated collection, you can easily find and set stunning backgrounds for your device. '
                     'Enjoy seamless browsing, instant downloads, and one-tap wallpaper application.',
                     textAlign: TextAlign.center,
@@ -211,7 +211,7 @@ class AboutScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'WallpaperMy Team',
+                    'My BTS Wallpaper Team',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -265,7 +265,7 @@ class AboutScreen extends StatelessWidget {
             
             // Footer
             const Text(
-              '© 2024 WallpaperMy. All rights reserved.',
+              '© 2024 My BTS Wallpaper. All rights reserved.',
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey,

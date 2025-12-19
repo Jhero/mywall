@@ -111,7 +111,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: Image.asset(
-                            '../../assets/images/logo.jpg',
+                            '../../assets/images/logo.png',
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
@@ -131,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
-                      'WallpaperMy',
+                      'My BTS Wallpaper',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -146,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
-                      'Beautiful Wallpapers for You',
+                      'Beautiful BTS Wallpapers for You',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white70,

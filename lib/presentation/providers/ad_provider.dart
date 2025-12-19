@@ -11,19 +11,54 @@ class AdProvider with ChangeNotifier {
   bool _isRewardedLoading = false;
   int _interstitialLoadAttempts = 0;
   int _rewardedLoadAttempts = 0;
+  bool _isDisposed = false;
 
   // Getters
-  bool get isInterstitialReady => _interstitialAd != null;
-  bool get isRewardedReady => _rewardedAd != null;
+  bool get isInterstitialReady => _interstitialAd != null && !_isDisposed;
+  bool get isRewardedReady => _rewardedAd != null && !_isDisposed;
   bool get isInterstitialLoading => _isInterstitialLoading;
   bool get isRewardedLoading => _isRewardedLoading;
 
+  AdProvider() {
+    _initialize();
+  }
+
+  /// Initialize ads with error handling
+  Future<void> _initialize() async {
+    try {
+      DebugLogger.logAdEvent('AdProvider initializing...');
+      
+      // Pre-load interstitial ad
+      await loadInterstitialAd();
+      
+      DebugLogger.logAdSuccess('AdProvider initialized successfully');
+    } catch (e) {
+      DebugLogger.logAdError('Error initializing AdProvider', error: e);
+      // Don't throw, let app continue without ads
+    }
+  }
+
+  /// Load Interstitial Ad with retry mechanism
   Future<void> loadInterstitialAd() async {
-    if (_isInterstitialLoading || 
-        _interstitialLoadAttempts >= AdmobConstants.maxFailedLoadAttempts) return;
+    if (_isDisposed) {
+      DebugLogger.logAdError('AdProvider is disposed, cannot load ad');
+      return;
+    }
+
+    if (_isInterstitialLoading) {
+      DebugLogger.logAdEvent('Interstitial ad already loading');
+      return;
+    }
+
+    if (_interstitialLoadAttempts >= AdmobConstants.maxFailedLoadAttempts) {
+      DebugLogger.logAdError(
+        'Max load attempts reached for interstitial ad ($_interstitialLoadAttempts)',
+      );
+      return;
+    }
 
     _isInterstitialLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await InterstitialAd.load(
@@ -31,49 +66,101 @@ class AdProvider with ChangeNotifier {
         request: const AdRequest(),
         adLoadCallback: InterstitialAdLoadCallback(
           onAdLoaded: (InterstitialAd ad) {
+            if (_isDisposed) {
+              ad.dispose();
+              return;
+            }
+
             _interstitialAd = ad;
             _isInterstitialLoading = false;
             _interstitialLoadAttempts = 0;
             
             _setupInterstitialCallbacks(ad);
-            notifyListeners();
+            _safeNotifyListeners();
             
-            DebugLogger.logAdSuccess('Interstitial ad loaded');
+            DebugLogger.logAdSuccess('Interstitial ad loaded successfully');
           },
           onAdFailedToLoad: (LoadAdError error) {
+            if (_isDisposed) return;
+
             _isInterstitialLoading = false;
             _interstitialLoadAttempts++;
             _interstitialAd = null;
-            notifyListeners();
+            _safeNotifyListeners();
             
-            DebugLogger.logAdError('Interstitial ad failed to load', error: error);
+            DebugLogger.logAdError(
+              'Interstitial ad failed to load (attempt $_interstitialLoadAttempts)',
+              error: error,
+            );
+
+            // Retry after delay if not max attempts
+            if (_interstitialLoadAttempts < AdmobConstants.maxFailedLoadAttempts) {
+              Future.delayed(const Duration(seconds: 5), () {
+                if (!_isDisposed) {
+                  loadInterstitialAd();
+                }
+              });
+            }
           },
         ),
       );
     } catch (e) {
+      if (_isDisposed) return;
+
       _isInterstitialLoading = false;
       _interstitialLoadAttempts++;
-      notifyListeners();
+      _safeNotifyListeners();
       
-      DebugLogger.logAdError('Error loading interstitial ad', error: e);
+      DebugLogger.logAdError('Exception loading interstitial ad', error: e);
     }
   }
 
+  /// Show Interstitial Ad with fallback
   Future<void> showInterstitialAd() async {
-    if (_interstitialAd != null) {
-      await _interstitialAd!.show();
-    } else {
-      DebugLogger.logAdError('Interstitial ad not ready');
+    if (_isDisposed) {
+      DebugLogger.logAdError('AdProvider is disposed, cannot show ad');
+      return;
+    }
+
+    try {
+      if (_interstitialAd != null) {
+        await _interstitialAd!.show();
+        DebugLogger.logAdEvent('Showing interstitial ad');
+      } else {
+        DebugLogger.logAdError('Interstitial ad not ready, loading...');
+        await loadInterstitialAd();
+      }
+    } catch (e) {
+      DebugLogger.logAdError('Error showing interstitial ad', error: e);
+      // Dispose and reload
+      _interstitialAd?.dispose();
+      _interstitialAd = null;
+      _safeNotifyListeners();
       await loadInterstitialAd();
     }
   }
 
+  /// Load Rewarded Ad with retry mechanism
   Future<void> loadRewardedAd() async {
-    if (_isRewardedLoading || 
-        _rewardedLoadAttempts >= AdmobConstants.maxFailedLoadAttempts) return;
+    if (_isDisposed) {
+      DebugLogger.logAdError('AdProvider is disposed, cannot load ad');
+      return;
+    }
+
+    if (_isRewardedLoading) {
+      DebugLogger.logAdEvent('Rewarded ad already loading');
+      return;
+    }
+
+    if (_rewardedLoadAttempts >= AdmobConstants.maxFailedLoadAttempts) {
+      DebugLogger.logAdError(
+        'Max load attempts reached for rewarded ad ($_rewardedLoadAttempts)',
+      );
+      return;
+    }
 
     _isRewardedLoading = true;
-    notifyListeners();
+    _safeNotifyListeners();
 
     try {
       await RewardedAd.load(
@@ -81,50 +168,94 @@ class AdProvider with ChangeNotifier {
         request: const AdRequest(),
         rewardedAdLoadCallback: RewardedAdLoadCallback(
           onAdLoaded: (RewardedAd ad) {
+            if (_isDisposed) {
+              ad.dispose();
+              return;
+            }
+
             _rewardedAd = ad;
             _isRewardedLoading = false;
             _rewardedLoadAttempts = 0;
             
             _setupRewardedCallbacks(ad);
-            notifyListeners();
+            _safeNotifyListeners();
             
-            DebugLogger.logAdSuccess('Rewarded ad loaded');
+            DebugLogger.logAdSuccess('Rewarded ad loaded successfully');
           },
           onAdFailedToLoad: (LoadAdError error) {
+            if (_isDisposed) return;
+
             _isRewardedLoading = false;
             _rewardedLoadAttempts++;
             _rewardedAd = null;
-            notifyListeners();
+            _safeNotifyListeners();
             
-            DebugLogger.logAdError('Rewarded ad failed to load', error: error);
+            DebugLogger.logAdError(
+              'Rewarded ad failed to load (attempt $_rewardedLoadAttempts)',
+              error: error,
+            );
+
+            // Retry after delay if not max attempts
+            if (_rewardedLoadAttempts < AdmobConstants.maxFailedLoadAttempts) {
+              Future.delayed(const Duration(seconds: 5), () {
+                if (!_isDisposed) {
+                  loadRewardedAd();
+                }
+              });
+            }
           },
         ),
       );
     } catch (e) {
+      if (_isDisposed) return;
+
       _isRewardedLoading = false;
       _rewardedLoadAttempts++;
-      notifyListeners();
+      _safeNotifyListeners();
       
-      DebugLogger.logAdError('Error loading rewarded ad', error: e);
+      DebugLogger.logAdError('Exception loading rewarded ad', error: e);
     }
   }
 
+  /// Show Rewarded Ad with callback
   Future<void> showRewardedAd({
     required Function(RewardItem) onRewardEarned,
+    Function()? onAdDismissed,
   }) async {
-    if (_rewardedAd != null) {
-      _rewardedAd!.setImmersiveMode(true);
-      await _rewardedAd!.show(
-        onUserEarnedReward: (ad, reward) {
-          onRewardEarned(reward);
-        },
-      );
-    } else {
-      DebugLogger.logAdError('Rewarded ad not ready');
+    if (_isDisposed) {
+      DebugLogger.logAdError('AdProvider is disposed, cannot show ad');
+      return;
+    }
+
+    try {
+      if (_rewardedAd != null) {
+        _rewardedAd!.setImmersiveMode(true);
+        await _rewardedAd!.show(
+          onUserEarnedReward: (ad, reward) {
+            DebugLogger.logAdSuccess(
+              'User earned reward: ${reward.amount} ${reward.type}',
+            );
+            onRewardEarned(reward);
+          },
+        );
+        DebugLogger.logAdEvent('Showing rewarded ad');
+      } else {
+        DebugLogger.logAdError('Rewarded ad not ready, loading...');
+        await loadRewardedAd();
+        onAdDismissed?.call();
+      }
+    } catch (e) {
+      DebugLogger.logAdError('Error showing rewarded ad', error: e);
+      // Dispose and reload
+      _rewardedAd?.dispose();
+      _rewardedAd = null;
+      _safeNotifyListeners();
       await loadRewardedAd();
+      onAdDismissed?.call();
     }
   }
 
+  /// Setup Interstitial Ad Callbacks
   void _setupInterstitialCallbacks(InterstitialAd ad) {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
@@ -134,19 +265,34 @@ class AdProvider with ChangeNotifier {
         DebugLogger.logAdEvent('Interstitial ad dismissed');
         ad.dispose();
         _interstitialAd = null;
-        notifyListeners();
-        loadInterstitialAd(); // Pre-load next ad
+        _safeNotifyListeners();
+        
+        // Pre-load next ad
+        if (!_isDisposed) {
+          loadInterstitialAd();
+        }
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         DebugLogger.logAdError('Interstitial ad failed to show', error: error);
         ad.dispose();
         _interstitialAd = null;
-        notifyListeners();
-        loadInterstitialAd(); // Pre-load next ad
+        _safeNotifyListeners();
+        
+        // Pre-load next ad
+        if (!_isDisposed) {
+          loadInterstitialAd();
+        }
+      },
+      onAdClicked: (ad) {
+        DebugLogger.logAdEvent('Interstitial ad clicked');
+      },
+      onAdImpression: (ad) {
+        DebugLogger.logAdEvent('Interstitial ad impression recorded');
       },
     );
   }
 
+  /// Setup Rewarded Ad Callbacks
   void _setupRewardedCallbacks(RewardedAd ad) {
     ad.fullScreenContentCallback = FullScreenContentCallback(
       onAdShowedFullScreenContent: (ad) {
@@ -156,23 +302,69 @@ class AdProvider with ChangeNotifier {
         DebugLogger.logAdEvent('Rewarded ad dismissed');
         ad.dispose();
         _rewardedAd = null;
-        notifyListeners();
-        loadRewardedAd(); // Pre-load next ad
+        _safeNotifyListeners();
+        
+        // Pre-load next ad
+        if (!_isDisposed) {
+          loadRewardedAd();
+        }
       },
       onAdFailedToShowFullScreenContent: (ad, error) {
         DebugLogger.logAdError('Rewarded ad failed to show', error: error);
         ad.dispose();
         _rewardedAd = null;
-        notifyListeners();
-        loadRewardedAd(); // Pre-load next ad
+        _safeNotifyListeners();
+        
+        // Pre-load next ad
+        if (!_isDisposed) {
+          loadRewardedAd();
+        }
+      },
+      onAdClicked: (ad) {
+        DebugLogger.logAdEvent('Rewarded ad clicked');
+      },
+      onAdImpression: (ad) {
+        DebugLogger.logAdEvent('Rewarded ad impression recorded');
       },
     );
   }
 
+  /// Safe notify listeners that checks disposal state
+  void _safeNotifyListeners() {
+    if (!_isDisposed) {
+      try {
+        notifyListeners();
+      } catch (e) {
+        DebugLogger.logAdError('Error notifying listeners', error: e);
+      }
+    }
+  }
+
+  /// Reset load attempts (useful after successful show)
+  void resetLoadAttempts() {
+    _interstitialLoadAttempts = 0;
+    _rewardedLoadAttempts = 0;
+    DebugLogger.logAdEvent('Load attempts reset');
+  }
+
   @override
   void dispose() {
-    _interstitialAd?.dispose();
-    _rewardedAd?.dispose();
+    if (_isDisposed) return;
+    
+    _isDisposed = true;
+    
+    try {
+      _interstitialAd?.dispose();
+      _interstitialAd = null;
+      
+      _rewardedAd?.dispose();
+      _rewardedAd = null;
+      
+      DebugLogger.logAdEvent('AdProvider disposed');
+    } catch (e) {
+      DebugLogger.logAdError('Error disposing AdProvider', error: e);
+    }
+    
     super.dispose();
   }
 }

@@ -9,6 +9,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart'; // UNCOMMENT INI
 import 'package:wallpaper_manager_flutter/wallpaper_manager_flutter.dart';
+import 'dart:ui' as ui;
+import 'package:image/image.dart' as img;
 
 class WallpaperLocation {
   static const int HOME_SCREEN = WallpaperManagerFlutter.homeScreen;

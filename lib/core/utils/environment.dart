@@ -1,4 +1,5 @@
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:mywall/core/utils/debug_logger.dart';
 
 class Environment {
   // HTTP API
@@ -42,6 +43,14 @@ class Environment {
 
   // Init dotenv
   static Future<void> load() async {
-    await dotenv.load(fileName: ".env");
+    try {
+      // Your existing environment loading code
+      await dotenv.load(fileName: ".env");
+      DebugLogger.logAdSuccess('Environment loaded successfully');
+    } catch (e) {
+      DebugLogger.logAdError('Error loading environment: $e');
+      // Set default values or throw if critical
+      // throw Exception('Failed to load environment: $e');
+    }
   }
 }
