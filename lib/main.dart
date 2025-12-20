@@ -89,7 +89,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'My BTS Wallpaper',
+      title: 'My BTS Wallpaper 2026',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
@@ -190,7 +190,7 @@ class ErrorRecoveryApp extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
                   const Text(
-                    'My BTS Wallpaper',
+                    'My BTS Wallpaper 2026',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

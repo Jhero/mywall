@@ -131,7 +131,7 @@ class _SplashScreenState extends State<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
-                      'My BTS Wallpaper',
+                      'My BTS Wallpaper 2026',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -146,7 +146,7 @@ class _SplashScreenState extends State<SplashScreen>
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
-                      'Beautiful BTS Wallpapers for You',
+                      'Beautiful BTS Wallpapers 2026 for You',
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white70,

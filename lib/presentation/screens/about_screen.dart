@@ -60,7 +60,7 @@ class AboutScreen extends StatelessWidget {
             
             // App Title
             const Text(
-              'My BTS Wallpaper',
+              'My BTS Wallpaper 2026',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
