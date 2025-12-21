@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final Map<String, dynamic> ageSignals; // ✅ Tambahkan ageSignals
+
+  const SplashScreen({super.key, required this.ageSignals});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -17,7 +19,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -40,7 +42,37 @@ class _SplashScreenState extends State<SplashScreen>
     ));
 
     _animationController.forward();
-    _navigateToMainScreen();
+
+    // ✅ Cek sinyal usia sebelum navigasi
+    _checkAgeSignals();
+  }
+
+  void _checkAgeSignals() async {
+    final signals = widget.ageSignals;
+    if (signals['under13'] == true || signals['parentalSupervision'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text("Persetujuan Orang Tua"),
+            content: const Text(
+              "Beberapa fitur memerlukan persetujuan orang tua sesuai regulasi.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _navigateToMainScreen();
+                },
+                child: const Text("OK"),
+              ),
+            ],
+          ),
+        );
+      });
+    } else {
+      _navigateToMainScreen();
+    }
   }
 
   void _navigateToMainScreen() async {
@@ -111,7 +143,7 @@ class _SplashScreenState extends State<SplashScreen>
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(20),
                           child: Image.asset(
-                            '../../assets/images/logo.png',
+                            'assets/images/logo.png',
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) {
                               return const Icon(
@@ -125,9 +157,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
-                  
                   const SizedBox(height: 30),
-                  
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
@@ -140,9 +170,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
-                  
                   const SizedBox(height: 10),
-                  
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const Text(
@@ -154,9 +182,7 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                     ),
                   ),
-                  
                   const SizedBox(height: 50),
-                  
                   FadeTransition(
                     opacity: _fadeAnimation,
                     child: const SizedBox(

@@ -1,4 +1,5 @@
 allprojects {
+    // Ensure repositories are declared early to avoid daemon issues
     repositories {
         google()
         mavenCentral()

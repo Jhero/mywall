@@ -8,8 +8,10 @@ import 'presentation/providers/ad_provider.dart';
 import 'presentation/screens/splash_screen.dart';
 import 'core/themes/app_theme.dart';
 
+// Import Age Verification Service
+import 'services/age_verification_service.dart';
+
 void main() {
-  // Tangkap semua error Flutter framework
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('═══════════════════════════════════════════');
@@ -19,47 +21,52 @@ void main() {
     debugPrint('═══════════════════════════════════════════');
   };
 
-  // Tangkap error async yang tidak tertangani
   runZonedGuarded(
     () async {
-      // Pastikan Flutter sudah terinisialisasi
       WidgetsFlutterBinding.ensureInitialized();
-      
+
       try {
-        // Set orientasi portrait saja
         await SystemChrome.setPreferredOrientations([
           DeviceOrientation.portraitUp,
           DeviceOrientation.portraitDown,
         ]);
-        
-        // Load environment dengan error handling
+
         try {
           await Environment.load();
           debugPrint('✓ Environment loaded successfully');
         } catch (e) {
           debugPrint('✗ Error loading environment: $e');
-          // Continue anyway, bisa pakai default values
         }
-        
-        // Initialize Admob dengan error handling
+
         try {
           await AdmobService().initialize();
           debugPrint('✓ AdMob initialized successfully');
         } catch (e) {
           debugPrint('✗ Error initializing AdMob: $e');
-          // Continue anyway, app masih bisa jalan tanpa ads
         }
+
+        // 🔎 Cek sinyal usia menggunakan service
+        final ageSignals = await AgeVerificationService.getAgeSignals();
+        debugPrint("✓ Age signals retrieved: $ageSignals");
         
-        // Run app
+        // Log informasi tambahan
+        if (AgeVerificationService.isUnder13(ageSignals)) {
+          debugPrint("⚠️ User is under 13 years old");
+        }
+        if (AgeVerificationService.isUnderParentalSupervision(ageSignals)) {
+          debugPrint("👨‍👩‍👧 User is under parental supervision");
+        }
+        debugPrint("📊 Age range: ${AgeVerificationService.getAgeRange(ageSignals)}");
+
         runApp(
           MultiProvider(
             providers: [
               ChangeNotifierProvider(
                 create: (_) => AdProvider(),
-                lazy: false, // Load immediately
+                lazy: false,
               ),
             ],
-            child: const MyApp(),
+            child: MyApp(ageSignals: ageSignals),
           ),
         );
       } catch (e, stackTrace) {
@@ -68,8 +75,7 @@ void main() {
         debugPrint('Error: $e');
         debugPrint('Stack trace: $stackTrace');
         debugPrint('═══════════════════════════════════════════');
-        
-        // Tetap run app dengan minimal config
+
         runApp(const ErrorRecoveryApp());
       }
     },
@@ -84,7 +90,8 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Map<String, dynamic> ageSignals;
+  const MyApp({super.key, required this.ageSignals});
 
   @override
   Widget build(BuildContext context) {
@@ -94,79 +101,21 @@ class MyApp extends StatelessWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,
-      
-      // Error handler untuk widget build errors
       builder: (context, widget) {
-        // Custom error widget
         ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
           return MaterialApp(
             home: Scaffold(
-              backgroundColor: Colors.white,
-              body: SafeArea(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 24),
-                        const Text(
-                          'Oops! Something went wrong',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Please restart the app',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 24),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            SystemNavigator.pop();
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Close App'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 24,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+              body: Center(child: Text("Oops! Something went wrong")),
             ),
           );
         };
-        
         return widget ?? const SizedBox.shrink();
       },
-      
-      home: const SplashScreen(),
+      home: SplashScreen(ageSignals: ageSignals),
     );
   }
 }
 
-// Fallback app jika ada critical error
 class ErrorRecoveryApp extends StatelessWidget {
   const ErrorRecoveryApp({super.key});
 
@@ -178,53 +127,38 @@ class ErrorRecoveryApp extends StatelessWidget {
         backgroundColor: Colors.white,
         body: SafeArea(
           child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.warning_amber_rounded,
-                    size: 80,
-                    color: Colors.orange,
-                  ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    'My BTS Wallpaper 2026',
-                    style: TextStyle(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    size: 80, color: Colors.orange),
+                const SizedBox(height: 32),
+                const Text(
+                  'My BTS Wallpaper 2026',
+                  style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
+                      color: Colors.black87),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'The app encountered an error during startup.\nPlease try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    SystemNavigator.pop();
+                  },
+                  icon: const Icon(Icons.close),
+                  label: const Text('Close App'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'The app encountered an error during startup.\nPlease try again.',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                      height: 1.5,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      SystemNavigator.pop();
-                    },
-                    icon: const Icon(Icons.close),
-                    label: const Text('Close App'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),

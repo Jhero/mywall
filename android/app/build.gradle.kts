@@ -3,7 +3,7 @@ import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android") // gunakan plugin kotlin-android versi DSL
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -44,7 +44,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        
+
         ndk {
             abiFilters += listOf("armeabi-v7a", "arm64-v8a", "x86_64")
         }
@@ -63,17 +63,21 @@ android {
         release {
             isMinifyEnabled = false
             isShrinkResources = false
-            
+
             ndk {
                 debugSymbolLevel = "FULL"
             }
 
-            // Gunakan signing config
             signingConfig = signingConfigs.getByName("release")
         }
     }
 }
 
-flutter {
-    source = "../.."
+dependencies {
+    implementation("com.google.android.gms:play-services-basement:18.4.0")
+    implementation("com.google.android.gms:play-services-tasks:18.2.0")
+
+    // implementation("com.google.android.play:age-signals:0.0.2")
+    // implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.23")
+    // implementation("com.google.android.gms:play-services-family:20.1.0")
 }

@@ -55,20 +55,25 @@ class AboutScreen extends StatelessWidget {
                 ),
               ),
             ),
+                        
+            const SizedBox(height: 40), // ✅ Tambahkan jarak lebih besar
             
-            const SizedBox(height: 25),
-            
-            // App Title
-            const Text(
-              'My BTS Wallpaper 2026',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-                letterSpacing: 0.5,
+            FittedBox(
+              fit: BoxFit.scaleDown, // ✅ otomatis mengecil jika layar sempit
+              child: const Text(
+                'My BTS Wallpaper 2026',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,           // ✅ pastikan tetap satu baris
+                overflow: TextOverflow.ellipsis,
+                softWrap: false,
+                textAlign: TextAlign.center,
               ),
             ),
-            
             const SizedBox(height: 8),
             
             // App Version
@@ -265,7 +270,7 @@ class AboutScreen extends StatelessWidget {
             
             // Footer
             const Text(
-              '© 2024 My BTS Wallpaper. All rights reserved.',
+              '© 2026 My BTS Wallpaper. All rights reserved.',
               style: TextStyle(
                 fontSize: 13,
                 color: Colors.grey,
