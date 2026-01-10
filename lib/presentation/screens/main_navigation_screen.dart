@@ -32,6 +32,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return Scaffold(
       body: _screens[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
+        type: BottomNavigationBarType.fixed, // ⬅️ WAJIB kalau item > 3
+        showSelectedLabels: true,
+        showUnselectedLabels: true,
+
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home),
@@ -51,10 +55,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,        // warna ikon saat dipilih
-        unselectedItemColor: Colors.grey,      // warna ikon saat tidak dipilih
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
       ),
     );
   }
+
 }
