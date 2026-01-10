@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import '../helpers/category_cache_helper.dart';
 import 'dart:async';
 import '../services/gallery_service.dart';
 import '../models/gallery.dart';
@@ -35,6 +37,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   int _currentPage = 1;
   final int _limit = 20;
   bool _hasMore = true;
+  int _totalItems = 0; // Add total items counter
   final ScrollController _scrollController = ScrollController();
 
   final WebSocketService _webSocketService = WebSocketService();
@@ -97,6 +100,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           setState(() {
             // Tambahkan di awal list untuk menunjukkan yang terbaru
             galleries.insert(0, newGallery);
+            // _totalItems++;
           });
         }
       } catch (e) {
@@ -134,6 +138,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
       if (deletedId != null && mounted) {
         setState(() {
           galleries.removeWhere((gallery) => gallery.id?.toString() == deletedId);
+          // _totalItems--;
         });
       }
     } catch (e) {
@@ -166,7 +171,8 @@ class _WallpaperGridState extends State<WallpaperGrid> {
         setState(() {
           galleries = loadedGalleries;
           isLoading = false;
-          _hasMore = false; // External data biasanya tidak support pagination
+          _hasMore = false;
+          _totalItems = 22;
           errorMessage = null;
         });
       }
@@ -187,18 +193,21 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     setState(() {
       _currentPage = 1;
       _hasMore = true;
+      _totalItems = 0;
       galleries.clear();
     });
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels == 
-        _scrollController.position.maxScrollExtent) {
-      if (_hasMore && !isLoadingMore) {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // if (_hasMore && !isLoadingMore) {
+        _hasMore = true;
         _loadMoreGalleries();
-      }
+      // }
     }
   }
+
 
   Future<void> _loadGalleries({bool silent = false}) async {
     if (!silent) {
@@ -209,47 +218,57 @@ class _WallpaperGridState extends State<WallpaperGrid> {
     }
 
     try {
-      List<Gallery> loadedGalleries;
-      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-        // Load galleries by category
-        loadedGalleries = await GalleryService.fetchGalleriesByCategory(
-          widget.searchQuery!,
+      List<Gallery> loadedGalleries = [];
+      int totalItems = 0;
+      bool hasNext = false;
+
+      if (widget.categoryId != null && widget.categoryId!.isNotEmpty) {
+        // ✅ Load by category
+        final galleryResponse =
+            await GalleryService.fetchGalleriesByCategory(
+          widget.categoryId!,
           page: _currentPage,
           limit: _limit,
         );
-      } else if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-        // print('Loading galleries by search: ${widget.searchQuery}');
-        // Load galleries by search (jika ada)
-        loadedGalleries = await GalleryService.fetchGalleries(
-          page: _currentPage,
-          limit: _limit,
-        );
-        // Filter by search query locally
-        loadedGalleries = loadedGalleries.where((gallery) => 
-          gallery.title?.toLowerCase().contains(widget.searchQuery!.toLowerCase()) ?? false
-        ).toList();
+
+        loadedGalleries = galleryResponse.galleries;
+        totalItems = galleryResponse.pagination.totalItems;
+        hasNext = galleryResponse.pagination.hasNext;
       } else {
-        print('Loading all galleries');
-        // Load all galleries
-        loadedGalleries = await GalleryService.fetchGalleries(
+        // ✅ Load all galleries
+        final galleryResponse = await GalleryService.fetchGalleries(
           page: _currentPage,
           limit: _limit,
         );
+
+        loadedGalleries = galleryResponse.galleries;
+        totalItems = galleryResponse.pagination.totalItems;
+        hasNext = galleryResponse.pagination.hasNext;
+      }
+
+      // ✅ Filter by search query
+      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
+        loadedGalleries = loadedGalleries.where((gallery) {
+          return gallery.title
+                  ?.toLowerCase()
+                  .contains(widget.searchQuery!.toLowerCase()) ??
+              false;
+        }).toList();
       }
 
       if (mounted) {
         setState(() {
           galleries = loadedGalleries;
           isLoading = false;
-          _hasMore = loadedGalleries.length == _limit;
+          _hasMore = hasNext;
+          _totalItems = totalItems;
           errorMessage = null;
+          // ❌ HAPUS _currentPage++
         });
       }
-
-      print('Successfully loaded ${loadedGalleries.length} galleries');
-      
     } catch (e) {
       print('Error loading galleries: $e');
+
       if (mounted && !silent) {
         setState(() {
           isLoading = false;
@@ -262,56 +281,46 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   Future<void> _loadMoreGalleries() async {
     if (isLoadingMore || !_hasMore) return;
 
-    setState(() {
-      isLoadingMore = true;
-    });
+    setState(() => isLoadingMore = true);
 
     try {
       final nextPage = _currentPage + 1;
-      List<Gallery> newGalleries;
-      // print('Loading more galleries for category1: ${widget.searchQuery}');
-      if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-        // print('Loading more galleries for category: ${widget.searchQuery}');
-        newGalleries = await GalleryService.fetchGalleriesByCategory(
-          widget.searchQuery!,
+      List<Gallery> newGalleries = [];
+      bool hasNext = false;
+
+      if (widget.categoryId != null && widget.categoryId!.isNotEmpty) {
+        final response = await GalleryService.fetchGalleriesByCategory(
+          widget.categoryId!,
           page: nextPage,
           limit: _limit,
         );
+        newGalleries = response.galleries;
+        hasNext = response.pagination.hasNext;
       } else {
-      // print('Loading more galleries for category2: ${widget.categoryId}');
-        newGalleries = await GalleryService.fetchGalleries(
+        final response = await GalleryService.fetchGalleries(
           page: nextPage,
           limit: _limit,
         );
-        
-        // Filter by search query jika ada
-        if (widget.searchQuery != null && widget.searchQuery!.isNotEmpty) {
-          newGalleries = newGalleries.where((gallery) => 
-            gallery.title?.toLowerCase().contains(widget.searchQuery!.toLowerCase()) ?? false
-          ).toList();
-        }
+        newGalleries = response.galleries;
+        hasNext = response.pagination.hasNext;
       }
 
       if (mounted) {
         setState(() {
           galleries.addAll(newGalleries);
           _currentPage = nextPage;
-          _hasMore = newGalleries.length == _limit;
+          _hasMore = hasNext;
           isLoadingMore = false;
         });
       }
-
-      print('Loaded ${newGalleries.length} more galleries');
-      
     } catch (e) {
       print('Error loading more galleries: $e');
       if (mounted) {
-        setState(() {
-          isLoadingMore = false;
-        });
+        setState(() => isLoadingMore = false);
       }
     }
   }
+
 
   Future<void> _refreshGalleries() async {
     _resetPagination();
@@ -401,7 +410,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
                   ),
                 ),
                 child: Text(
-                  gallery.title ?? 'Untitled',
+                  '',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 12,
@@ -475,7 +484,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   }
 
   Widget _buildHeaderInfo() {
-    String infoText = '${galleries.length} galleries';
+    String infoText = '${galleries.length} gallery${galleries.length == 1 ? '' : 's'} of $_totalItems galleries'; 
     Widget? filterChip;
     
     return Padding(

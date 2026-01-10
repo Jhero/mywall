@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart';
 import 'favorites_screen.dart';
 import 'about_screen.dart';
+import 'rate_us_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({Key? key}) : super(key: key);
@@ -12,19 +13,20 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _selectedIndex = 0;
-  
+
   final List<Widget> _screens = [
     MyHomePage(),
     const FavoritesScreen(),
     const AboutScreen(),
+    const RateUsScreen(), // Tambahkan Rate Us
   ];
-  
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -43,9 +45,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
             icon: Icon(Icons.info),
             label: 'About',
           ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.star),
+            label: 'Rate Us',
+          ),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
+        selectedItemColor: Colors.blue,        // warna ikon saat dipilih
+        unselectedItemColor: Colors.grey,      // warna ikon saat tidak dipilih
         onTap: _onItemTapped,
       ),
     );

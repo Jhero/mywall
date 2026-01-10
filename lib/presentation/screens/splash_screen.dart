@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
+// import '../../helpers/rating_helper.dart';
 
 class SplashScreen extends StatefulWidget {
   final Map<String, dynamic> ageSignals; // ✅ Tambahkan ageSignals
@@ -19,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
+    // RatingHelper.incrementAppLaunches();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,

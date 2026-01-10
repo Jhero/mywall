@@ -29,6 +29,7 @@ class AdmobConstants {
 
   static String get realNativeAdUnitId {
     final envId = Environment.admobNativeId;
+    print('realNativeAdUnitId: $envId');
     return envId.isNotEmpty ? envId : testNativeAdUnitId;
   }
 

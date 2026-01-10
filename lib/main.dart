@@ -6,12 +6,19 @@ import 'core/utils/environment.dart';
 import 'data/services/admob_service.dart';
 import 'presentation/providers/ad_provider.dart';
 import 'presentation/screens/splash_screen.dart';
+// import 'presentation/widgets/rating_dialog.dart';
 import 'core/themes/app_theme.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+// import 'helpers/category_cache_helper.dart';
 
 // Import Age Verification Service
 import 'services/age_verification_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await Hive.openBox('category_cache');  
+
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.presentError(details);
     debugPrint('═══════════════════════════════════════════');
@@ -111,6 +118,17 @@ class MyApp extends StatelessWidget {
         };
         return widget ?? const SizedBox.shrink();
       },
+      // home: WillPopScope(
+      //   onWillPop: () async {
+      //     // intercept tombol back/exit
+      //     showDialog(
+      //       context: context,
+      //       builder: (_) => RatingDialog(), // dialog rating Play Store
+      //     );
+      //     return false; // cegah keluar langsung
+      //   },
+      //   child: SplashScreen(ageSignals: ageSignals),
+      // ),
       home: SplashScreen(ageSignals: ageSignals),
     );
   }

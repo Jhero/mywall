@@ -4,6 +4,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/gallery.dart';
+import '../models/gallery_response.dart';
 import '../config/env_config.dart';
 
 class GalleryService {
@@ -11,7 +12,8 @@ class GalleryService {
   static String get apiKey => EnvConfig.apiKey;
 
   // Fetch galleries with pagination
-  static Future<List<Gallery>> fetchGalleries({
+  /*
+  static Future<List<GalleryResponse>> fetchGalleries({
     int page = 1,
     int limit = 20,
   }) async {
@@ -31,13 +33,16 @@ class GalleryService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
+                
         List<Map<String, dynamic>> galleriesData = [];
+        int totalItems = 0;
         
           // Handle different API response structures
         if (data is Map && data.containsKey('status') && data['status'] == true) {
           if (data.containsKey('data')) {
             var dataField = data['data'];
+            totalItems = data['pagination']['total_items'] ?? 0;
+
             
             // PERBAIKAN PENTING: dataField adalah Map yang mengandung 'data' array
             if (dataField is Map && dataField.containsKey('data')) {
@@ -67,8 +72,10 @@ class GalleryService {
         print('Parsed ${galleriesData.length} galleries');
         
         // Convert to Gallery objects
-        return galleriesData.map((item) => Gallery.fromJson(item)).toList();
-        
+        // final galleries = galleriesData.map((item) => Gallery.fromJson(item)).toList();
+        // return galleries;        
+        return GalleryResponse.fromJson(json.decode(response.body));
+
       } else {
         throw Exception('Failed to fetch galleries: ${response.statusCode}');
       }
@@ -78,6 +85,56 @@ class GalleryService {
       throw Exception('Failed to load galleries: $e');
     }
   }
+  */
+
+  static Future<GalleryResponse> fetchGalleries({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final url = '$baseUrl/api/galleries?page=$page&limit=$limit';
+      print('Fetching galleries from: $url');
+      
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'X-API-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      print('Galleries response status: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+
+        // langsung gunakan model
+        final galleryResponse = GalleryResponse.fromJson(data);
+        return galleryResponse;
+      } else if(response.statusCode == 204) {
+        // 🔥 TIDAK ERROR — DATA HABIS
+        return GalleryResponse(
+          galleries: [],
+          status: true,
+          message: 'No more galleries available',
+          pagination: Pagination(
+            totalItems: 0,
+            currentPage: page,
+            hasNext: false,
+            hasPrevious: false,
+            itemsPerPage: limit,
+            totalPages: 0,
+          ),
+        );
+      } else {
+        throw Exception('Failed to fetch galleries: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching galleries: $e');
+      throw Exception('Failed to load galleries: $e');
+    }
+  }
+
 
   // Search galleries with pagination
   static Future<List<Gallery>> searchGalleries(
@@ -158,13 +215,13 @@ class GalleryService {
   }
 
   // Alternative method: Fetch galleries by category with pagination
-  static Future<List<Gallery>> fetchGalleriesByCategory(
+  static Future<GalleryResponse> fetchGalleriesByCategory(
     String categoryId, {
     int page = 1,
     int limit = 20,
   }) async {
     try {
-      final url = '$baseUrl/api/galleries?category_id=$categoryId?page=$page&limit=$limit';
+      final url = '$baseUrl/api/galleries?category_id=$categoryId&page=$page&limit=$limit';
       print('Fetching galleries by category from: $url');
       
       final response = await http.get(
@@ -175,40 +232,30 @@ class GalleryService {
         },
       ).timeout(const Duration(seconds: 30));
 
-      print('Category galleries response status: ${response.statusCode}');
+      print('Category galleries response status: ${response}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
-        List<Map<String, dynamic>> galleriesData = [];
-        
-        // Handle different API response structures
-        if (data is List) {
-          galleriesData = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map) {
-          if (data.containsKey('status') && data['status'] == true) {
-            if (data.containsKey('data')) {
-              var dataField = data['data'];
-              if (dataField is List) {
-                galleriesData = List<Map<String, dynamic>>.from(dataField);
-              } else if (dataField is Map && dataField.containsKey('data')) {
-                galleriesData = List<Map<String, dynamic>>.from(dataField['data']);
-              }
-            }
-          } else if (data.containsKey('galleries')) {
-            galleriesData = List<Map<String, dynamic>>.from(data['galleries']);
-          } else if (data.containsKey('data')) {
-            var dataField = data['data'];
-            if (dataField is List) {
-              galleriesData = List<Map<String, dynamic>>.from(dataField);
-            }
-          }
-        }
 
-        // Convert to Gallery objects
-        return galleriesData.map((item) => Gallery.fromJson(item)).toList();
-        
-      } else {
+        // langsung gunakan model
+        final galleryResponse = GalleryResponse.fromJson(data);
+        return galleryResponse;
+      } else if (response.statusCode == 204) {
+        // 🔥 TIDAK ERROR — DATA HABIS
+        return GalleryResponse(
+          galleries: [],
+          status: true,
+          message: 'No more galleries available',
+          pagination: Pagination(
+            totalItems: 0,
+            currentPage: page,
+            hasNext: false,
+            hasPrevious: false,
+            itemsPerPage: limit,
+            totalPages: 0,
+          ),
+        );
+      }else {
         throw Exception('Failed to fetch category galleries: ${response.statusCode}');
       }
     } catch (e) {

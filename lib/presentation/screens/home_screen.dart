@@ -11,6 +11,8 @@ import 'dart:io';
 import 'dart:async'; // Import untuk Stream
 import '../../services/socket_service.dart'; // Import SocketService
 import '../../services/websocket_service.dart'; // Ganti dengan WebSocketService
+// import '../../helpers/rating_helper.dart';
+import '../../helpers/category_cache_helper.dart';
 
 class MyHomePage extends StatefulWidget {
   @override
@@ -44,6 +46,10 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   RatingHelper.showRatingDialogIfNeeded(context);
+    // });
+
     fetchCategories();
     // _startAutoRefresh();
     _initializeWebSocket();
@@ -204,112 +210,111 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Future<void> fetchCategories({bool isRefresh = false}) async {
     if (!mounted) return;
-    
+
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
 
     try {
-      String url = '$baseUrl/api/categories';
+      // ===============================
+      // 1️⃣ LOAD FROM CACHE (if allowed)
+      // ===============================
+      if (!isRefresh) {
+        final cachedCategories =
+            CategoryCacheHelper.loadIfValid();
+
+        if (cachedCategories != null) {
+          setState(() {
+            allWallpapers = cachedCategories;
+            filteredWallpapers = List.from(cachedCategories);
+            isLoading = false;
+          });
+
+          print('Loaded categories from Hive cache');
+          _triggerWallpaperGridUpdate();
+          return;
+        }
+      }
+
+      // ===============================
+      // 2️⃣ FETCH FROM API
+      // ===============================
+      final url = '$baseUrl/api/categories';
       print('Fetching categories from: $url');
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'X-API-Key': apiKey,
-          'Content-Type': 'application/json',
-        },
-      ).timeout(Duration(seconds: 30));
+      final response = await http
+          .get(
+            Uri.parse(url),
+            headers: {
+              'X-API-Key': apiKey,
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        
-        List<Map<String, dynamic>> categories = [];
-        
-        // Handle different API response structures
-        if (data is List) {
-          categories = List<Map<String, dynamic>>.from(data);
-        } else if (data is Map) {
-          if (data.containsKey('status') && data['status'] == true) {
-            if (data.containsKey('data')) {
-              var dataField = data['data'];
-              if (dataField is List) {
-                categories = List<Map<String, dynamic>>.from(dataField);
-              } else if (dataField is Map && dataField.containsKey('data')) {
-                categories = List<Map<String, dynamic>>.from(dataField['data']);
-              }
-            }
-          } else if (data.containsKey('categories')) {
-            categories = List<Map<String, dynamic>>.from(data['categories']);
-          } else if (data.containsKey('data')) {
-            var dataField = data['data'];
-            if (dataField is List) {
-              categories = List<Map<String, dynamic>>.from(dataField);
-            } else if (dataField is Map && dataField.containsKey('data')) {
-              categories = List<Map<String, dynamic>>.from(dataField['data']);
-            }
-          }
-        }
-
-        // Process categories to fetch authorized image URLs
-        List<Future<void>> imageFutures = [];
-        for (var category in categories) {
-          if (category.containsKey('image_url') && category['image_url'] != null) {
-            String originalPath = category['image_url'].toString();
-            
-            Future<void> imageFuture = fetchAuthorizedImageUrl(originalPath).then((authorizedUrl) {
-              if (authorizedUrl != null) {
-                category['authorized_image_url'] = authorizedUrl;
-              }
-            });
-            
-            imageFutures.add(imageFuture);
-          }
-        }
-        
-        try {
-          await Future.wait(imageFutures).timeout(Duration(seconds: 30));
-        } catch (e) {
-          print('Some image authorization requests timed out: $e');
-        }
-
-        setState(() {
-          allWallpapers = categories;
-          filteredWallpapers = List.from(allWallpapers);
-          isLoading = false;
-          errorMessage = null;
-        });
-
-        print('Successfully loaded ${categories.length} categories');
-        
-        // Trigger update setelah data baru dimuat
-        _triggerWallpaperGridUpdate();
-        
-      } else {
-        throw HttpException('Server returned ${response.statusCode}: ${response.reasonPhrase}');
+      if (response.statusCode != 200) {
+        throw HttpException(
+            'Server returned ${response.statusCode}');
       }
-      
-    } on SocketException catch (e) {
-      print('Network error: $e');
-      _handleError('No internet connection. Please check your network.');
-    } on FormatException catch (e) {
-      print('JSON parsing error: $e');
-      _handleError('Invalid response format from server.');
-    } on HttpException catch (e) {
-      print('HTTP error: $e');
-      _handleError('Server error: ${e.message}');
+
+      final data = json.decode(response.body);
+
+      List<Map<String, dynamic>> categories = [];
+
+      if (data is List) {
+        categories = List<Map<String, dynamic>>.from(data);
+      } else if (data is Map) {
+        final rawData = data['data'] ?? data['categories'];
+        if (rawData is List) {
+          categories = List<Map<String, dynamic>>.from(rawData);
+        } else if (rawData is Map && rawData['data'] is List) {
+          categories =
+              List<Map<String, dynamic>>.from(rawData['data']);
+        }
+      }
+
+      // ===============================
+      // 3️⃣ PROCESS IMAGE AUTH
+      // ===============================
+      final futures = categories.map((category) async {
+        if (category['image_url'] != null) {
+          final authorized =
+              await fetchAuthorizedImageUrl(
+                  category['image_url']);
+          if (authorized != null) {
+            category['authorized_image_url'] = authorized;
+          }
+        }
+      }).toList();
+
+      await Future.wait(futures)
+          .timeout(const Duration(seconds: 30));
+
+      // ===============================
+      // 4️⃣ SAVE TO CACHE
+      // ===============================
+      await CategoryCacheHelper.save(categories);
+
+      // ===============================
+      // 5️⃣ UPDATE UI
+      // ===============================
+      setState(() {
+        allWallpapers = categories;
+        filteredWallpapers = List.from(categories);
+        isLoading = false;
+      });
+
+      print('Loaded ${categories.length} categories from API');
+      _triggerWallpaperGridUpdate();
     } catch (e) {
-      print('Unexpected error: $e');
-      if (e.toString().contains('TimeoutException')) {
-        _handleError('Request timeout. Please try again.');
-      } else {
-        _handleError('Failed to load categories: ${e.toString()}');
-      }
+      print('Error loading categories: $e');
+      _handleError('Failed to load categories');
     }
   }
+
 
   void _handleError(String message) {
     if (!mounted) return;
@@ -338,7 +343,7 @@ class _MyHomePageState extends State<MyHomePage> {
       isSearching = query.isNotEmpty;
       if (query.isEmpty) {
         filteredWallpapers = List.from(allWallpapers);
-        currentSearchQuery = null;
+        categoryId = null;
       } else {
         filteredWallpapers = allWallpapers
             .where((item) => item['name']?.toString().toLowerCase().contains(query.toLowerCase()) ?? false)
@@ -351,7 +356,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       searchController.text = selectedWallpaper['name']?.toString() ?? '';
       isSearching = false;
-      currentSearchQuery = selectedWallpaper['id']?.toString();
+      categoryId = selectedWallpaper['id']?.toString();
     });
   }
 
@@ -359,7 +364,7 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       searchController.clear();
       isSearching = false;
-      currentSearchQuery = null;
+      categoryId = null;
       filteredWallpapers = List.from(allWallpapers);
       _refreshWallpaperGrid();
     });
@@ -480,7 +485,7 @@ class _MyHomePageState extends State<MyHomePage> {
           const SizedBox(height: 15),
           
           // Search Status
-          if (currentSearchQuery != null && currentSearchQuery!.isNotEmpty)
+          if (categoryId != null && categoryId!.isNotEmpty)
             Container(
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -490,7 +495,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Results for "${_getWallpaperNameById(currentSearchQuery!)}"',
+                      'Results for "${_getWallpaperNameById(categoryId!)}"',
                       style: TextStyle(
                         color: Colors.blue[600],
                         fontWeight: FontWeight.w500,
@@ -585,7 +590,7 @@ class _MyHomePageState extends State<MyHomePage> {
       height: MediaQuery.of(context).size.height * 0.6,
       child: WallpaperGrid(
         key: _wallpaperGridKey,
-        searchQuery: currentSearchQuery,
+        searchQuery: null,
         categoryId: categoryId,
         useLocalAssets: false,
         onRefresh: _refreshAll,
@@ -677,11 +682,13 @@ class _MyHomePageState extends State<MyHomePage> {
       child: GestureDetector(
         onTap: () {
           setState(() {
-            currentSearchQuery = categoryId;
-            categoryId = categoryId;
+            // categoryId = categoryId;
+            this.categoryId = categoryId;
             searchController.text = title;
             isSearching = false;
-            _refreshWallpaperGrid();
+            searchController.clear();
+            // filteredWallpapers = List.from(allWallpapers);
+            // _refreshWallpaperGrid();
           });
         },
         child: Column(

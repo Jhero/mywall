@@ -64,7 +64,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   void initState() {
     super.initState();
     if (widget.gallery != null) {
-      imageIdentifier = widget.gallery!.imageUrl;
+      imageIdentifier = widget.gallery!.imageUrl ?? '';
     } else {
       imageIdentifier = widget.imagePath!;
     }
@@ -116,7 +116,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       
       if (widget.gallery != null) {
         // Download from API
-        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl ?? '');
         final response = await http.get(
           Uri.parse(imageUrl),
           headers: {'X-API-Key': GalleryService.apiKey},
@@ -137,7 +137,8 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
           fileType = 'webp';
         }
         
-        fileName = 'wallpaper_${widget.gallery!.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${DateTime.now().millisecondsSinceEpoch}.$fileType';
+        fileName = 'wallpaper_${(widget.gallery!.title ?? '') .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${DateTime.now().millisecondsSinceEpoch}.$fileType';
+        // fileName = 'wallpaper_${widget.gallery!.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}_${DateTime.now().millisecondsSinceEpoch}.$fileType';
       } else {
         // Handle local asset
         final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
@@ -281,7 +282,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       String fileName;
       
       if (widget.gallery != null) {
-        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl ?? '');
         final response = await http.get(
           Uri.parse(imageUrl),
           headers: {'X-API-Key': GalleryService.apiKey},
@@ -292,7 +293,9 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
         }
         
         imageBytes = response.bodyBytes;
-        fileName = 'wallpaper_${widget.gallery!.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.jpg';
+        fileName = 'wallpaper_${(widget.gallery!.title ?? '')
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.jpg';        
+        // fileName = 'wallpaper_${widget.gallery!.title.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}.jpg';
       } else {
         final ByteData data = await DefaultAssetBundle.of(context).load(widget.imagePath!);
         imageBytes = data.buffer.asUint8List();
@@ -373,7 +376,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
       String filePath;
       
       if (widget.gallery != null) {
-        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+        final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl ?? '');
         final response = await http.get(
           Uri.parse(imageUrl),
           headers: {'X-API-Key': GalleryService.apiKey},
@@ -507,7 +510,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
 
   Widget _buildImage() {
     if (widget.gallery != null) {
-      final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl);
+      final imageUrl = GalleryService.getImageUrl(widget.gallery!.imageUrl ?? '');
       return FutureBuilder<http.Response>(
         future: http.get(
           Uri.parse(imageUrl),
