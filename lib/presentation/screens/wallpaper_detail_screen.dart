@@ -638,23 +638,30 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         actions: [
           IconButton(
             onPressed: _toggleFavorite,
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? Colors.red : Colors.white,
+              color: isFavorite
+                  ? Colors.red
+                  : (Theme.of(context).appBarTheme.foregroundColor ??
+                      Theme.of(context).colorScheme.onSurface),
             ),
             tooltip: isFavorite ? 'Remove from favorites' : 'Add to favorites',
           ),
           IconButton(
             onPressed: _downloadWallpaper,
-            icon: const Icon(Icons.download, color: Colors.white),
+            icon: Icon(
+              Icons.download,
+              color: Theme.of(context).appBarTheme.foregroundColor ??
+                  Theme.of(context).colorScheme.onSurface,
+            ),
             tooltip: 'Download wallpaper',
           ),
         ],
@@ -675,7 +682,7 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[900]!.withOpacity(0.95),
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.95),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -694,8 +701,8 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                         icon: const Icon(Icons.wallpaper),
                         label: const Text('Set Wallpaper'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.primary,
+                          foregroundColor: Theme.of(context).colorScheme.onPrimary,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -719,8 +726,8 @@ class _WallpaperDetailScreenState extends State<WallpaperDetailScreen> {
                             : const Icon(Icons.share),
                         label: Text(_isSharing ? 'Sharing...' : 'Share'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
+                          backgroundColor: Theme.of(context).colorScheme.secondary,
+                          foregroundColor: Theme.of(context).colorScheme.onSecondary,
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),

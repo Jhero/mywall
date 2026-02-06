@@ -7,19 +7,19 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'About App',
           style: TextStyle(
-            color: Colors.black,
+            color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface,
             fontWeight: FontWeight.w600,
           ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: Theme.of(context).appBarTheme.elevation ?? 0,
+        centerTitle: Theme.of(context).appBarTheme.centerTitle ?? true,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -33,15 +33,18 @@ class AboutScreen extends StatelessWidget {
               width: 120,
               height: 120,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Colors.blue, Colors.purple],
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.secondary
+                  ],
                 ),
                 borderRadius: BorderRadius.circular(25),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.3),
+                    color: Theme.of(context).colorScheme.primary.withOpacity(0.3),
                     blurRadius: 15,
                     offset: const Offset(0, 5),
                   ),
@@ -60,12 +63,12 @@ class AboutScreen extends StatelessWidget {
             
             FittedBox(
               fit: BoxFit.scaleDown, // ✅ otomatis mengecil jika layar sempit
-              child: const Text(
-                'My BTS Wallpaper 2026',
+              child: Text(
+                'My BTS Idol Wallpaper 2026',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                   letterSpacing: 0.5,
                 ),
                 maxLines: 1,           // ✅ pastikan tetap satu baris
@@ -80,14 +83,14 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.1),
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Text(
+              child: Text(
                 'Version 1.0.0',
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.primary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -100,29 +103,29 @@ class AboutScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.grey[50],
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.grey[200]!),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   Text(
                     'About My BTS Wallpaper',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   SizedBox(height: 12),
                   Text(
-                    'My BTS Wallpaper is your ultimate destination for beautiful, high-quality wallpapers. '
+                    'My BTS Idol Wallpaper is your ultimate destination for beautiful, high-quality wallpapers. '
                     'With our curated collection, you can easily find and set stunning backgrounds for your device. '
                     'Enjoy seamless browsing, instant downloads, and one-tap wallpaper application.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 15,
-                      color: Colors.black87,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.87),
                       height: 1.6,
                     ),
                   ),
@@ -133,14 +136,14 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 30),
             
             // Features Title
-            const Align(
+            Align(
               alignment: Alignment.centerLeft,
               child: Text(
                 'Key Features',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
             ),
@@ -154,7 +157,7 @@ class AboutScreen extends StatelessWidget {
                   icon: Icons.collections,
                   title: 'Vast Collection',
                   description: 'Thousands of high-quality wallpapers in various categories',
-                  iconColor: Colors.blue,
+                  iconColor: Theme.of(context).colorScheme.primary,
                 ),
                 
                 FeatureItem(
@@ -168,7 +171,7 @@ class AboutScreen extends StatelessWidget {
                   icon: Icons.category_rounded,
                   title: 'Smart Categories',
                   description: 'Browse by categories like Jimin, Jhope, Vee, and more',
-                  iconColor: Colors.green,
+                  iconColor: Theme.of(context).colorScheme.secondary,
                 ),
                 
                 FeatureItem(
@@ -201,35 +204,35 @@ class AboutScreen extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.blue[50],
+                color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.blue[100]!),
+                border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.2)),
               ),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Developed with ❤️ by',
                     style: TextStyle(
                       fontSize: 16,
-                      color: Colors.blueGrey,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'My BTS Wallpaper Team',
+                  Text(
+                    'My BTS Idol Wallpaper Team',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.blue,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                   const SizedBox(height: 15),
-                  const Text(
+                  Text(
                     'We are passionate about creating beautiful experiences through carefully curated wallpapers.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: Colors.blueGrey,
+                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -254,8 +257,8 @@ class AboutScreen extends StatelessWidget {
                     icon: const Icon(Icons.email_outlined, size: 20),
                     label: const Text('Contact Support'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
@@ -269,11 +272,11 @@ class AboutScreen extends StatelessWidget {
             const SizedBox(height: 30),
             
             // Footer
-            const Text(
-              '© 2026 My BTS Wallpaper. All rights reserved.',
+            Text(
+              '© 2026 My BTS Idol Wallpaper. All rights reserved.',
               style: TextStyle(
                 fontSize: 13,
-                color: Colors.grey,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
             

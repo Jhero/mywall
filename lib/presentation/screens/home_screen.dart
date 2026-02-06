@@ -9,12 +9,23 @@ import '../../config/env_config.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async'; // Import untuk Stream
-import '../../services/socket_service.dart'; // Import SocketService
-import '../../services/websocket_service.dart'; // Ganti dengan WebSocketService
+import '../../services/websocket_service.dart';
 // import '../../helpers/rating_helper.dart';
 import '../../helpers/category_cache_helper.dart';
 
+import '../../services/websocket_service.dart';
+// import '../../services/notification_service.dart';
+import '../../widgets/notification_badge.dart';
+import '../../pages/notification_page.dart';
+import '../../services/websocket_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/theme_provider.dart';
+
 class MyHomePage extends StatefulWidget {
+  final GlobalKey? tourThemeMenuKey;
+  final GlobalKey? tourNotificationKey;
+  final GlobalKey? tourReloadKey;
+  MyHomePage({this.tourThemeMenuKey, this.tourNotificationKey, this.tourReloadKey});
   @override
   _MyHomePageState createState() => _MyHomePageState();
 }
@@ -40,7 +51,6 @@ class _MyHomePageState extends State<MyHomePage> {
   // StreamController untuk auto-update
   final StreamController<bool> _updateStreamController = StreamController<bool>.broadcast();
   Timer? _autoRefreshTimer;
-  final SocketService _socketService = SocketService();
   final WebSocketService _webSocketService = WebSocketService();
 
   @override
@@ -67,23 +77,19 @@ class _MyHomePageState extends State<MyHomePage> {
     searchController.dispose();
     _updateStreamController.close();
     
-    // GANTI: remove listeners WebSocketService
     _webSocketService.removeNewGalleryListener(_handleWebSocketNewGallery);
     _webSocketService.removeUpdateGalleryListener(_handleWebSocketUpdateGallery);
     _webSocketService.removeDeleteGalleryListener(_handleWebSocketDeleteGallery);
-    _webSocketService.disconnect();
     
     super.dispose();
   }
 
   void _initializeWebSocket() {
-    // Initialize WebSocket connection
-    _webSocketService.initializeWebSocket();
-    
-    // Add listeners untuk WebSocket events
+    // Register gallery listeners on WebSocketService
     _webSocketService.addNewGalleryListener(_handleWebSocketNewGallery);
     _webSocketService.addUpdateGalleryListener(_handleWebSocketUpdateGallery);
     _webSocketService.addDeleteGalleryListener(_handleWebSocketDeleteGallery);
+    _webSocketService.connect();
   }
 
   /*
@@ -107,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void _handleWebSocketNewGallery(Map<String, dynamic> galleryData) {
-    print('🆕 WebSocket: New gallery received in HomePage: $galleryData');
+    // print('🆕 WebSocket: New gallery received in HomePage: $galleryData');
     
     try {        
         // Trigger WallpaperGrid update
@@ -122,22 +128,22 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         );
     } catch (e) {
-      print('Error handling new gallery from WebSocket: $e');
+      // print('Error handling new gallery from WebSocket: $e');
     }
   }
 
   void _handleWebSocketUpdateGallery(Map<String, dynamic> galleryData) {
-    print('📝 WebSocket: Gallery updated in HomePage: $galleryData');
+    // print('📝 WebSocket: Gallery updated in HomePage: $galleryData');
     
     try {
         _triggerWallpaperGridUpdate();
     } catch (e) {
-      print('Error handling updated gallery from WebSocket: $e');
+      // print('Error handling updated gallery from WebSocket: $e');
     }
   }
 
   void _handleWebSocketDeleteGallery(Map<String, dynamic> galleryData) {
-    print('🗑️ WebSocket: Gallery deleted in HomePage: $galleryData');
+    // print('🗑️ WebSocket: Gallery deleted in HomePage: $galleryData');
     
     try {        
         _triggerWallpaperGridUpdate();
@@ -151,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         );
     } catch (e) {
-      print('Error handling deleted gallery from WebSocket: $e');
+      // print('Error handling deleted gallery from WebSocket: $e');
     }
   }
 
@@ -161,7 +167,7 @@ class _MyHomePageState extends State<MyHomePage> {
     try {
         _triggerWallpaperGridUpdate();
     } catch (e) {
-      print('Auto-refresh error: $e');
+      // print('Auto-refresh error: $e');
     }
   }
 
@@ -178,7 +184,7 @@ class _MyHomePageState extends State<MyHomePage> {
     
     if (cleanPath.startsWith('uploads/')) {
       cleanPath = cleanPath.substring(8);
-    }
+    } 
     
     return '$baseUrl/api/images/$cleanPath';
   }
@@ -199,11 +205,11 @@ class _MyHomePageState extends State<MyHomePage> {
       if (response.statusCode == 200) {
         return imageUrl;
       } else {
-        print('Failed to authorize image: ${response.statusCode}');
+        // print('Failed to authorize image: ${response.statusCode}');
         return null;
       }
     } catch (e) {
-      print('Error fetching authorized image: $e');
+      // print('Error fetching authorized image: $e');
       return null;
     }
   }
@@ -218,88 +224,53 @@ class _MyHomePageState extends State<MyHomePage> {
 
     try {
       // ===============================
-      // 1️⃣ LOAD FROM CACHE (if allowed)
+      // 1️⃣ DATA STATIS
       // ===============================
-      if (!isRefresh) {
-        final cachedCategories =
-            CategoryCacheHelper.loadIfValid();
-
-        if (cachedCategories != null) {
-          setState(() {
-            allWallpapers = cachedCategories;
-            filteredWallpapers = List.from(cachedCategories);
-            isLoading = false;
-          });
-
-          print('Loaded categories from Hive cache');
-          _triggerWallpaperGridUpdate();
-          return;
-        }
-      }
-
-      // ===============================
-      // 2️⃣ FETCH FROM API
-      // ===============================
-      final url = '$baseUrl/api/categories';
-      print('Fetching categories from: $url');
-
-      final response = await http
-          .get(
-            Uri.parse(url),
-            headers: {
-              'X-API-Key': apiKey,
-              'Content-Type': 'application/json',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (!mounted) return;
-
-      if (response.statusCode != 200) {
-        throw HttpException(
-            'Server returned ${response.statusCode}');
-      }
-
-      final data = json.decode(response.body);
-
-      List<Map<String, dynamic>> categories = [];
-
-      if (data is List) {
-        categories = List<Map<String, dynamic>>.from(data);
-      } else if (data is Map) {
-        final rawData = data['data'] ?? data['categories'];
-        if (rawData is List) {
-          categories = List<Map<String, dynamic>>.from(rawData);
-        } else if (rawData is Map && rawData['data'] is List) {
-          categories =
-              List<Map<String, dynamic>>.from(rawData['data']);
-        }
-      }
+      final categories = [
+        {
+          'id': 14,
+          'name': 'Jhope',
+          'authorized_image_url': 'assets/category/Jhope.jpg',
+        },
+        {
+          'id': 4,
+          'name': 'Jimin',
+          'authorized_image_url': 'assets/category/Jimin.jpg',
+        },
+        {
+          'id': 13,
+          'name': 'Jin',
+          'authorized_image_url': 'assets/category/Jin.jpg',
+        },
+        {
+          'id': 17,
+          'name': 'Jungkok',
+          'authorized_image_url': 'assets/category/Jungkok.jpg',
+        },
+        {
+          'id': 15,
+          'name': 'RM',
+          'authorized_image_url': 'assets/category/RM.jpg',
+        },
+        {
+          'id': 18,
+          'name': 'Suga',
+          'authorized_image_url': 'assets/category/Suga.jpg',
+        },
+        {
+          'id': 16,
+          'name': 'Vee',
+          'authorized_image_url': 'assets/category/Vee.jpg',
+        },
+      ];
 
       // ===============================
-      // 3️⃣ PROCESS IMAGE AUTH
-      // ===============================
-      final futures = categories.map((category) async {
-        if (category['image_url'] != null) {
-          final authorized =
-              await fetchAuthorizedImageUrl(
-                  category['image_url']);
-          if (authorized != null) {
-            category['authorized_image_url'] = authorized;
-          }
-        }
-      }).toList();
-
-      await Future.wait(futures)
-          .timeout(const Duration(seconds: 30));
-
-      // ===============================
-      // 4️⃣ SAVE TO CACHE
+      // 2️⃣ SAVE TO CACHE (optional)
       // ===============================
       await CategoryCacheHelper.save(categories);
 
       // ===============================
-      // 5️⃣ UPDATE UI
+      // 3️⃣ UPDATE UI
       // ===============================
       setState(() {
         allWallpapers = categories;
@@ -307,10 +278,10 @@ class _MyHomePageState extends State<MyHomePage> {
         isLoading = false;
       });
 
-      print('Loaded ${categories.length} categories from API');
+      // print('Loaded ${categories.length} categories from static assets');
       _triggerWallpaperGridUpdate();
     } catch (e) {
-      print('Error loading categories: $e');
+      // print('Error loading categories: $e');
       _handleError('Failed to load categories');
     }
   }
@@ -385,41 +356,68 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         centerTitle: true,
-        title: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Wallpaper',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+        title: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Wallpaper',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.onBackground,
+                ),
               ),
-            ),
-            Text(
-              'My',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.blue,
+              Text(
+                'My',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
-            ),
-            Text(
-              'BTS',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.purple, // warna khas BTS
+              Text(
+                'BTS Idol',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
               ),
-            ),            
-          ],
+            ],
+          ),
         ),
         actions: [
+          NotificationBadge(
+            key: widget.tourNotificationKey,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationPage(),
+                ),
+              );
+            },
+          ),
+          PopupMenuButton<String>(
+            key: widget.tourThemeMenuKey,
+            onSelected: (value) {
+              Provider.of<ThemeProvider>(context, listen: false)
+                  .setThemeByKey(value);
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'normal', child: Icon(Icons.wb_sunny)),
+              PopupMenuItem(value: 'dark', child: Icon(Icons.nightlight_round)),
+              PopupMenuItem(value: 'pink', child: Icon(Icons.favorite)),
+              PopupMenuItem(value: 'blue', child: Icon(Icons.water_drop)),
+            ],
+            icon: const Icon(Icons.color_lens),
+          ),
           // WebSocket connection indicator
           // StreamBuilder<bool>(
           //   stream: Stream.periodic(Duration(seconds: 5)).map((_) => _webSocketService.isConnected),
@@ -434,12 +432,72 @@ class _MyHomePageState extends State<MyHomePage> {
           // ),
           SizedBox(width: 8),
           IconButton(
+            key: widget.tourReloadKey,
             icon: Icon(Icons.refresh),
             onPressed: isLoading ? null : _refreshAll,
             tooltip: 'Refresh all data',
           ),
         ],
       ),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            children: [
+              // Bagian Consumer untuk status WebSocket
+              Builder(
+                builder: (context) {
+                  final ws = WebSocketService();
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    /*
+                    children: [
+                      const Text('Home Page'),
+                      const SizedBox(height: 20),
+                      Text(
+                        'Unread Notifications: ${ws.unreadCount}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'WebSocket: ${ws.isConnected ? "Connected ✅" : "Disconnected ❌"}',
+                        style: TextStyle(
+                          color: ws.isConnected ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                    */
+                  );
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Bagian RefreshIndicator + CustomScrollView
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshAll,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: _buildHeaderSection(),
+                      ),
+                      if (isSearching && filteredWallpapers.isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: _buildSearchResultsSection(),
+                        ),
+                      SliverToBoxAdapter(
+                        child: _buildMainContent(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      /*
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: _refreshAll,
@@ -465,12 +523,13 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ),
       ),
+      */
     );
   }
 
   Widget _buildHeaderSection() {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -491,13 +550,13 @@ class _MyHomePageState extends State<MyHomePage> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  Icon(Icons.search, color: Colors.blue[600], size: 18),
+                  Icon(Icons.search, color: Theme.of(context).colorScheme.primary, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       'Results for "${_getWallpaperNameById(categoryId!)}"',
                       style: TextStyle(
-                        color: Colors.blue[600],
+                        color: Theme.of(context).colorScheme.primary,
                         fontWeight: FontWeight.w500,
                         fontSize: 14,
                       ),
@@ -508,7 +567,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     onPressed: clearSearch,
                     child: const Text('Clear', style: TextStyle(fontSize: 12)),
                     style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey[600],
+                      foregroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                       padding: EdgeInsets.symmetric(horizontal: 8),
                     ),
                   ),
@@ -520,7 +579,7 @@ class _MyHomePageState extends State<MyHomePage> {
           Container(
             height: 1,
             margin: EdgeInsets.symmetric(horizontal: 16),
-            color: Colors.grey[200],
+            color: Theme.of(context).dividerColor,
           ),
           
           const SizedBox(height: 10),
@@ -531,7 +590,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildSearchResultsSection() {
     return Container(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -551,7 +610,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: clearSearch,
                 child: const Text('Clear', style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(
-                      foregroundColor: Colors.grey[600],
+                      foregroundColor: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   padding: EdgeInsets.symmetric(horizontal: 8),
                 ),
               ),
@@ -571,7 +630,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         wallpaper['name']?.toString() ?? 'Unknown',
                         style: TextStyle(fontSize: 12),
                       ),
-                      backgroundColor: Colors.blue[100],
+                      backgroundColor: Theme.of(context).colorScheme.primaryContainer,
                       visualDensity: VisualDensity.compact,
                     ),
                   ),
@@ -662,7 +721,7 @@ class _MyHomePageState extends State<MyHomePage> {
       itemBuilder: (context, index) {
         final category = filteredWallpapers[index];
         String categoryName = category['name']?.toString() ?? 'Unknown';
-        String categoryId = category['ID']?.toString() ?? '';
+        String categoryId = category['id']?.toString() ?? '';
         String imagePath = getCategoryImage(category);
         
         return _buildCategoryItem(
@@ -681,6 +740,7 @@ class _MyHomePageState extends State<MyHomePage> {
       margin: const EdgeInsets.only(right: 10),
       child: GestureDetector(
         onTap: () {
+          // print('Category tapped: $title with ID: $categoryId');
           setState(() {
             // categoryId = categoryId;
             this.categoryId = categoryId;
@@ -700,7 +760,7 @@ class _MyHomePageState extends State<MyHomePage> {
               height: 50, // Maximum height 50
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: Colors.grey[200],
+                color: Theme.of(context).colorScheme.surface,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -775,10 +835,11 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   String _getWallpaperNameById(String id) {
-    final wallpaper = allWallpapers.firstWhere(
-      (item) => item['ID']?.toString() == id,
-      orElse: () => {'ID': '', 'name': 'Unknown'},
-    );
-    return wallpaper['name']?.toString() ?? 'Unknown';
-  }
+    for (final item in allWallpapers) {
+      if (item['id']?.toString() == id) {
+        return item['name']?.toString() ?? 'Unknown';
+      }
+    }
+    return 'Unknown';
+  }  
 }

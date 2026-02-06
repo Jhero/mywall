@@ -30,3 +30,15 @@ subprojects {
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }
+
+subprojects {
+    plugins.withId("com.android.library") {
+        extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
+            // Ensure library modules compile against a modern SDK
+            compileSdk = 34
+            if (project.name == "flutter_app_badger" || project.path.contains("flutter_app_badger")) {
+                namespace = "fr.g123k.flutterappbadge.flutterappbadger"
+            }
+        }
+    }
+}

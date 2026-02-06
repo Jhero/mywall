@@ -5,7 +5,8 @@ import 'dart:async';
 import '../services/gallery_service.dart';
 import '../models/gallery.dart';
 import '../presentation/screens/wallpaper_detail_screen.dart';
-import '../services/websocket_service.dart';
+// live gallery updates via socket disabled
+import 'dart:convert';
 
 class WallpaperGrid extends StatefulWidget {
   final String? searchQuery;
@@ -40,7 +41,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   int _totalItems = 0; // Add total items counter
   final ScrollController _scrollController = ScrollController();
 
-  final WebSocketService _webSocketService = WebSocketService();
+  // no socket service used
   StreamSubscription? _updateSubscription;
 
   @override
@@ -61,12 +62,12 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   @override
   void didUpdateWidget(WallpaperGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
-    print('🔍 widget-3: "${widget}"');
-    print('🔍 oldWidget-3: "${oldWidget}"');
+    // print('🔍 widget-3: "${widget}"');
+    // print('🔍 oldWidget-3: "${oldWidget}"');
     // Jika searchQuery atau categoryId berubah, reset dan load ulang data
     if (widget.searchQuery != oldWidget.searchQuery || 
         widget.categoryId != oldWidget.categoryId) {
-       print('🎯 Category changed to: ${widget.categoryId}');   
+      //  print('🎯 Category changed to: ${widget.categoryId}');   
       _resetPagination();
       _loadGalleries();
     }
@@ -74,22 +75,17 @@ class _WallpaperGridState extends State<WallpaperGrid> {
 
   @override
   void dispose() {
-    _webSocketService.removeNewGalleryListener(_handleWebSocketNewGallery);
-    _webSocketService.removeUpdateGalleryListener(_handleWebSocketUpdateGallery);
-    _webSocketService.removeDeleteGalleryListener(_handleWebSocketDeleteGallery);
     _scrollController.dispose();
     _updateSubscription?.cancel();
     super.dispose();
   }
 
   void _setupWebSocketListeners() {
-    _webSocketService.addNewGalleryListener(_handleWebSocketNewGallery);
-    _webSocketService.addUpdateGalleryListener(_handleWebSocketUpdateGallery);
-    _webSocketService.addDeleteGalleryListener(_handleWebSocketDeleteGallery);
+    // no-op: live gallery updates disabled
   }
 
   void _handleWebSocketNewGallery(Map<String, dynamic> galleryData) {
-    print('🆕 WebSocket: New gallery received in WallpaperGrid');
+    // print('🆕 WebSocket: New gallery received in WallpaperGrid');
     
     // Jika tidak sedang search/filter tertentu, tambahkan gallery baru
     if (widget.searchQuery == null && widget.categoryId == null) {
@@ -104,13 +100,13 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           });
         }
       } catch (e) {
-        print('Error handling new gallery in WallpaperGrid: $e');
+        // print('Error handling new gallery in WallpaperGrid: $e');
       }
     }
   }
 
   void _handleWebSocketUpdateGallery(Map<String, dynamic> galleryData) {
-    print('📝 WebSocket: Gallery updated in WallpaperGrid');
+    // print('📝 WebSocket: Gallery updated in WallpaperGrid');
     
     try {
       final updatedGallery = Gallery.fromJson(galleryData);
@@ -125,12 +121,12 @@ class _WallpaperGridState extends State<WallpaperGrid> {
         });
       }
     } catch (e) {
-      print('Error handling updated gallery in WallpaperGrid: $e');
+      // print('Error handling updated gallery in WallpaperGrid: $e');
     }
   }
 
   void _handleWebSocketDeleteGallery(Map<String, dynamic> galleryData) {
-    print('🗑️ WebSocket: Gallery deleted in WallpaperGrid');
+    // print('🗑️ WebSocket: Gallery deleted in WallpaperGrid');
     
     try {
       final deletedId = galleryData['id']?.toString();
@@ -142,12 +138,12 @@ class _WallpaperGridState extends State<WallpaperGrid> {
         });
       }
     } catch (e) {
-      print('Error handling deleted gallery in WallpaperGrid: $e');
+      // print('Error handling deleted gallery in WallpaperGrid: $e');
     }
   }
 
   void _handleExternalUpdate(dynamic data) {
-    print('WallpaperGrid: Received external update signal: $data');
+    // print('WallpaperGrid: Received external update signal: $data');
     
     if (data is Map) {
       if (data['type'] == 'galleries_data') {
@@ -177,9 +173,9 @@ class _WallpaperGridState extends State<WallpaperGrid> {
         });
       }
       
-      print('Successfully loaded ${loadedGalleries.length} galleries from external source');
+      // print('Successfully loaded ${loadedGalleries.length} galleries from external source');
     } catch (e) {
-      print('Error handling external galleries data: $e');
+      // print('Error handling external galleries data: $e');
       if (mounted) {
         setState(() {
           isLoading = false;
@@ -201,10 +197,12 @@ class _WallpaperGridState extends State<WallpaperGrid> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      // if (_hasMore && !isLoadingMore) {
-        _hasMore = true;
+          // print('Reached bottom of scroll, loading more galleries');
+          // print('$_currentPage $_hasMore $isLoadingMore');
+      if (_hasMore && !isLoadingMore) {
+        // _hasMore = true;
         _loadMoreGalleries();
-      // }
+      }
     }
   }
 
@@ -240,7 +238,8 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           page: _currentPage,
           limit: _limit,
         );
-
+        // print('Loaded-2 ${galleryResponse.pagination.hasNext}');
+        
         loadedGalleries = galleryResponse.galleries;
         totalItems = galleryResponse.pagination.totalItems;
         hasNext = galleryResponse.pagination.hasNext;
@@ -267,7 +266,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
         });
       }
     } catch (e) {
-      print('Error loading galleries: $e');
+      // print('Error loading galleries: $e');
 
       if (mounted && !silent) {
         setState(() {
@@ -301,11 +300,13 @@ class _WallpaperGridState extends State<WallpaperGrid> {
           page: nextPage,
           limit: _limit,
         );
+        // print('Loaded-1 ${response}');
         newGalleries = response.galleries;
         hasNext = response.pagination.hasNext;
       }
 
       if (mounted) {
+        // print('Loaded hasmore ${hasNext} more galleries');
         setState(() {
           galleries.addAll(newGalleries);
           _currentPage = nextPage;
@@ -314,7 +315,7 @@ class _WallpaperGridState extends State<WallpaperGrid> {
         });
       }
     } catch (e) {
-      print('Error loading more galleries: $e');
+      // print('Error loading more galleries: $e');
       if (mounted) {
         setState(() => isLoadingMore = false);
       }

@@ -28,7 +28,7 @@ class AdmobService {
       ? AdmobConstants.testNativeAdUnitId 
       : AdmobConstants.realNativeAdUnitId;
 
-  Future<void> initialize() async {
+  Future<void> initialize({bool childDirected = false}) async {
     try {
       DebugLogger.logAdLoading('Initializing Mobile Ads SDK');
       
@@ -36,7 +36,9 @@ class AdmobService {
       
       final RequestConfiguration requestConfiguration = RequestConfiguration(
         testDeviceIds: _isTestMode ? ['TEST_DEVICE_ID'] : [],
-        tagForChildDirectedTreatment: TagForChildDirectedTreatment.unspecified,
+        tagForChildDirectedTreatment: childDirected
+            ? TagForChildDirectedTreatment.yes
+            : TagForChildDirectedTreatment.unspecified,
         maxAdContentRating: MaxAdContentRating.g,
       );
       

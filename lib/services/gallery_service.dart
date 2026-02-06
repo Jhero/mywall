@@ -11,89 +11,13 @@ class GalleryService {
   static String get baseUrl => EnvConfig.baseUrl;
   static String get apiKey => EnvConfig.apiKey;
 
-  // Fetch galleries with pagination
-  /*
-  static Future<List<GalleryResponse>> fetchGalleries({
-    int page = 1,
-    int limit = 20,
-  }) async {
-    try {
-      final url = '$baseUrl/api/galleries?page=$page&limit=$limit';
-      print('Fetching galleries from: $url');
-      
-      final response = await http.get(
-        Uri.parse(url),
-        headers: {
-          'X-API-Key': apiKey,
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 30));
-
-      print('Galleries response status: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-                
-        List<Map<String, dynamic>> galleriesData = [];
-        int totalItems = 0;
-        
-          // Handle different API response structures
-        if (data is Map && data.containsKey('status') && data['status'] == true) {
-          if (data.containsKey('data')) {
-            var dataField = data['data'];
-            totalItems = data['pagination']['total_items'] ?? 0;
-
-            
-            // PERBAIKAN PENTING: dataField adalah Map yang mengandung 'data' array
-            if (dataField is Map && dataField.containsKey('data')) {
-              var galleriesArray = dataField['data'];
-              if (galleriesArray is List) {
-                galleriesData = List<Map<String, dynamic>>.from(galleriesArray);
-              }
-            }
-            // Fallback: jika struktur berbeda
-            else if (dataField is List) {
-              galleriesData = List<Map<String, dynamic>>.from(dataField);
-            }
-          }
-        } 
-        // Fallback untuk struktur langsung array
-        else if (data is List) {
-          galleriesData = List<Map<String, dynamic>>.from(data);
-        }
-        // Fallback untuk struktur dengan key 'galleries'
-        else if (data is Map && data.containsKey('galleries')) {
-          var galleriesField = data['galleries'];
-          if (galleriesField is List) {
-            galleriesData = List<Map<String, dynamic>>.from(galleriesField);
-          }
-        }
-
-        print('Parsed ${galleriesData.length} galleries');
-        
-        // Convert to Gallery objects
-        // final galleries = galleriesData.map((item) => Gallery.fromJson(item)).toList();
-        // return galleries;        
-        return GalleryResponse.fromJson(json.decode(response.body));
-
-      } else {
-        throw Exception('Failed to fetch galleries: ${response.statusCode}');
-      }
-
-    } catch (e) {
-      print('Error fetching galleries: $e');
-      throw Exception('Failed to load galleries: $e');
-    }
-  }
-  */
-
   static Future<GalleryResponse> fetchGalleries({
     int page = 1,
     int limit = 20,
   }) async {
     try {
       final url = '$baseUrl/api/galleries?page=$page&limit=$limit';
-      print('Fetching galleries from: $url');
+      // print('Fetching galleries from: $url');
       
       final response = await http.get(
         Uri.parse(url),
@@ -103,7 +27,7 @@ class GalleryService {
         },
       ).timeout(const Duration(seconds: 30));
 
-      print('Galleries response status: ${response.statusCode}');
+      // print('Galleries response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -130,7 +54,7 @@ class GalleryService {
         throw Exception('Failed to fetch galleries: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching galleries: $e');
+      // print('Error fetching galleries: $e');
       throw Exception('Failed to load galleries: $e');
     }
   }
@@ -144,7 +68,7 @@ class GalleryService {
   }) async {
     try {
       final url = '$baseUrl/api/galleries/search?q=$query&page=$page&limit=$limit';
-      print('Searching galleries from: $url');
+      // print('Searching galleries from: $url');
       
       final response = await http.get(
         Uri.parse(url),
@@ -154,7 +78,7 @@ class GalleryService {
         },
       ).timeout(const Duration(seconds: 30));
 
-      print('Search galleries response status: ${response.statusCode}');
+      // print('Search galleries response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -193,7 +117,7 @@ class GalleryService {
         throw Exception('Failed to search galleries: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error searching galleries: $e');
+      // print('Error searching galleries: $e');
       throw Exception('Failed to search galleries: $e');
     }
   }
@@ -222,7 +146,7 @@ class GalleryService {
   }) async {
     try {
       final url = '$baseUrl/api/galleries?category_id=$categoryId&page=$page&limit=$limit';
-      print('Fetching galleries by category from: $url');
+      // print('Fetching galleries by category from: $url');
       
       final response = await http.get(
         Uri.parse(url),
@@ -232,7 +156,7 @@ class GalleryService {
         },
       ).timeout(const Duration(seconds: 30));
 
-      print('Category galleries response status: ${response}');
+      // print('Category galleries response status: ${response}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -259,7 +183,7 @@ class GalleryService {
         throw Exception('Failed to fetch category galleries: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error fetching category galleries: $e');
+      // print('Error fetching category galleries: $e');
       throw Exception('Failed to load category galleries: $e');
     }
   }

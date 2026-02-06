@@ -17,10 +17,10 @@ class AgeVerificationService {
       
       return _getDefaultAgeSignals();
     } on PlatformException catch (e) {
-      print("✗ PlatformException getting age signals: ${e.message}");
+      // print("✗ PlatformException getting age signals: ${e.message}");
       return _getDefaultAgeSignals();
     } catch (e) {
-      print("✗ Error getting age signals: $e");
+      // print("✗ Error getting age signals: $e");
       return _getDefaultAgeSignals();
     }
   }

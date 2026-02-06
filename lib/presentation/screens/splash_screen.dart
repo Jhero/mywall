@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'main_navigation_screen.dart';
-// import '../../helpers/rating_helper.dart';
 
 class SplashScreen extends StatefulWidget {
-  final Map<String, dynamic> ageSignals; // ✅ Tambahkan ageSignals
+  final Map<String, dynamic> ageSignals;
 
   const SplashScreen({super.key, required this.ageSignals});
 
@@ -20,7 +19,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    // RatingHelper.incrementAppLaunches();
     _animationController = AnimationController(
       duration: const Duration(milliseconds: 2000),
       vsync: this,
@@ -44,7 +42,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     _animationController.forward();
 
-    // ✅ Cek sinyal usia sebelum navigasi
     _checkAgeSignals();
   }
 
@@ -78,21 +75,20 @@ class _SplashScreenState extends State<SplashScreen>
 
   void _navigateToMainScreen() async {
     await Future.delayed(const Duration(milliseconds: 3000));
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              const MainNavigationScreen(),
-          transitionDuration: const Duration(milliseconds: 500),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            return FadeTransition(
-              opacity: animation,
-              child: child,
-            );
-          },
-        ),
-      );
-    }
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const MainNavigationScreen(),
+        transitionDuration: const Duration(milliseconds: 500),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: animation,
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -104,103 +100,82 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: AnimatedBuilder(
         animation: _animationController,
         builder: (context, child) {
           return Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF2196F3),
-                  Color(0xFF1976D2),
-                ],
+              image: DecorationImage(
+                image: AssetImage('assets/images/background.png'),
+                fit: BoxFit.cover,
               ),
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: FadeTransition(
-                      opacity: _fadeAnimation,
-                      child: Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 20,
-                              spreadRadius: 5,
-                            ),
-                          ],
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(20),
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.wallpaper,
-                                size: 60,
-                                color: Colors.blue,
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                   const SizedBox(height: 30),
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: const Text(
-                      'My BTS Wallpaper 2026',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: const Text(
-                      'Beautiful BTS Wallpapers 2026 for You',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 50),
-                  FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: const SizedBox(
-                      width: 30,
-                      height: 30,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 3,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  ),
+                  const DotLoader(), // loader tiga bulatan bergantian
                 ],
               ),
             ),
           );
         },
       ),
+    );
+  }
+}
+
+/// Loader tiga bulatan bergantian
+class DotLoader extends StatefulWidget {
+  const DotLoader({super.key});
+
+  @override
+  State<DotLoader> createState() => _DotLoaderState();
+}
+
+class _DotLoaderState extends State<DotLoader>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        int activeDot = (_controller.value * 3).floor() % 3;
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            double opacity = (activeDot == index) ? 1.0 : 0.3;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6.0),
+              child: Opacity(
+                opacity: opacity,
+                child: const CircleAvatar(
+                  radius: 6,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+            );
+          }),
+        );
+      },
     );
   }
 }

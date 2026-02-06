@@ -201,16 +201,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Favorite Wallpapers',
-          style: TextStyle(color: Colors.black),
+          style: TextStyle(
+            color: Theme.of(context).appBarTheme.foregroundColor ?? Theme.of(context).colorScheme.onSurface,
+          ),
         ),
-        backgroundColor: Colors.white,
-        elevation: 0,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+        elevation: Theme.of(context).appBarTheme.elevation ?? 0,
+        foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
         actions: [
           if (_favorites.isNotEmpty && !_isLoading)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.black),
+              icon: Icon(Icons.delete_outline, color: Theme.of(context).appBarTheme.foregroundColor),
               onPressed: () {
                 showDialog(
                   context: context,
@@ -241,21 +244,21 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               child: CircularProgressIndicator(),
             )
           : _favorites.isEmpty
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
                         Icons.favorite_border,
                         size: 64,
-                        color: Colors.grey,
+                        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
                       ),
                       SizedBox(height: 20),
                       Text(
                         'No favorites yet',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                       SizedBox(height: 10),
@@ -263,7 +266,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         'Like wallpapers to add them here',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ],

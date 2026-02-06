@@ -15,7 +15,7 @@ class GalleryResponse {
   });
 
   factory GalleryResponse.fromJson(Map<String, dynamic> json) {    
-    print('jsonku:\n${const JsonEncoder.withIndent('  ').convert(json)}');
+    // print('jsonku:\n${const JsonEncoder.withIndent('  ').convert(json)}');
     final dataField = json['data'];
     List<dynamic> rawList = [];
 
@@ -37,8 +37,8 @@ class GalleryResponse {
           ? Pagination.fromJson(json['data']['pagination'] as Map<String, dynamic>)
           : Pagination(
               currentPage: 1,
-              hasNext: false,
-              hasPrevious: false,
+              hasNext: json['data']['pagination']['has_next'] ?? false,
+              hasPrevious: json['data']['pagination']['has_previous'] ?? false,
               itemsPerPage: galleriesList.length,
               totalItems: (json['data']['pagination'] != null && json['data']['pagination']['total_items'] != null)
                 ? json['data']['pagination']['total_items'] as int

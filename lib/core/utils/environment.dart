@@ -4,7 +4,7 @@ import 'package:mywall/core/utils/debug_logger.dart';
 class Environment {
   // HTTP API
   static String get baseUrl =>
-      dotenv.env['BASE_URL'] ?? 'http://192.168.1.7:8080';
+      dotenv.env['BASE_URL'] ?? 'http://192.168.1.5:8080';
 
   static String get apiKey =>
       dotenv.env['API_KEY'] ??
@@ -12,7 +12,7 @@ class Environment {
 
   // Websocket URL (http → ws / https → wss)
   static String get webSocketUrl {
-    final url = dotenv.env['BASE_URL'] ?? 'http://192.168.1.7:8080';
+    final url = dotenv.env['BASE_URL'] ?? 'http://192.168.1.5:8080';
     if (url.startsWith('https://')) {
       return url.replaceFirst('https://', 'wss://') + '/ws';
     } else {
