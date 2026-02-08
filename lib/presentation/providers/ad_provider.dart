@@ -31,6 +31,9 @@ class AdProvider with ChangeNotifier {
       // Pre-load interstitial ad
       await loadInterstitialAd();
       
+      // Pre-load rewarded ad
+      loadRewardedAd();
+      
       DebugLogger.logAdSuccess('AdProvider initialized successfully');
     } catch (e) {
       DebugLogger.logAdError('Error initializing AdProvider', error: e);
@@ -116,18 +119,55 @@ class AdProvider with ChangeNotifier {
   }
 
   /// Show Interstitial Ad with fallback
-  Future<void> showInterstitialAd() async {
+  Future<void> showInterstitialAd({VoidCallback? onAdDismissed}) async {
     if (_isDisposed) {
       DebugLogger.logAdError('AdProvider is disposed, cannot show ad');
+      onAdDismissed?.call();
       return;
     }
 
     try {
       if (_interstitialAd != null) {
+        // Update callback to include user's onAdDismissed
+        _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdShowedFullScreenContent: (ad) {
+            DebugLogger.logAdEvent('Interstitial ad showed full screen content');
+          },
+          onAdDismissedFullScreenContent: (ad) {
+            DebugLogger.logAdEvent('Interstitial ad dismissed');
+            ad.dispose();
+            _interstitialAd = null;
+            _safeNotifyListeners();
+            
+            onAdDismissed?.call();
+
+            // Pre-load next ad
+            if (!_isDisposed) {
+              loadInterstitialAd();
+            }
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            DebugLogger.logAdError('Interstitial ad failed to show', error: error);
+            ad.dispose();
+            _interstitialAd = null;
+            _safeNotifyListeners();
+            
+            onAdDismissed?.call();
+
+            // Pre-load next ad
+            if (!_isDisposed) {
+              loadInterstitialAd();
+            }
+          },
+          onAdClicked: (ad) => DebugLogger.logAdEvent('Interstitial ad clicked'),
+          onAdImpression: (ad) => DebugLogger.logAdEvent('Interstitial ad impression recorded'),
+        );
+
         await _interstitialAd!.show();
         DebugLogger.logAdEvent('Showing interstitial ad');
       } else {
         DebugLogger.logAdError('Interstitial ad not ready, loading...');
+        onAdDismissed?.call();
         await loadInterstitialAd();
       }
     } catch (e) {
@@ -136,6 +176,7 @@ class AdProvider with ChangeNotifier {
       _interstitialAd?.dispose();
       _interstitialAd = null;
       _safeNotifyListeners();
+      onAdDismissed?.call();
       await loadInterstitialAd();
     }
   }
@@ -224,11 +265,47 @@ class AdProvider with ChangeNotifier {
   }) async {
     if (_isDisposed) {
       DebugLogger.logAdError('AdProvider is disposed, cannot show ad');
+      onAdDismissed?.call();
       return;
     }
 
     try {
       if (_rewardedAd != null) {
+        // Update callback to include user's onAdDismissed
+        _rewardedAd!.fullScreenContentCallback = FullScreenContentCallback(
+          onAdShowedFullScreenContent: (ad) {
+            DebugLogger.logAdEvent('Rewarded ad showed full screen content');
+          },
+          onAdDismissedFullScreenContent: (ad) {
+            DebugLogger.logAdEvent('Rewarded ad dismissed');
+            ad.dispose();
+            _rewardedAd = null;
+            _safeNotifyListeners();
+            
+            onAdDismissed?.call();
+
+            // Pre-load next ad
+            if (!_isDisposed) {
+              loadRewardedAd();
+            }
+          },
+          onAdFailedToShowFullScreenContent: (ad, error) {
+            DebugLogger.logAdError('Rewarded ad failed to show', error: error);
+            ad.dispose();
+            _rewardedAd = null;
+            _safeNotifyListeners();
+            
+            onAdDismissed?.call();
+
+            // Pre-load next ad
+            if (!_isDisposed) {
+              loadRewardedAd();
+            }
+          },
+          onAdClicked: (ad) => DebugLogger.logAdEvent('Rewarded ad clicked'),
+          onAdImpression: (ad) => DebugLogger.logAdEvent('Rewarded ad impression recorded'),
+        );
+
         _rewardedAd!.setImmersiveMode(true);
         await _rewardedAd!.show(
           onUserEarnedReward: (ad, reward) {
@@ -241,8 +318,8 @@ class AdProvider with ChangeNotifier {
         DebugLogger.logAdEvent('Showing rewarded ad');
       } else {
         DebugLogger.logAdError('Rewarded ad not ready, loading...');
-        await loadRewardedAd();
         onAdDismissed?.call();
+        await loadRewardedAd();
       }
     } catch (e) {
       DebugLogger.logAdError('Error showing rewarded ad', error: e);
@@ -250,8 +327,8 @@ class AdProvider with ChangeNotifier {
       _rewardedAd?.dispose();
       _rewardedAd = null;
       _safeNotifyListeners();
-      await loadRewardedAd();
       onAdDismissed?.call();
+      await loadRewardedAd();
     }
   }
 
